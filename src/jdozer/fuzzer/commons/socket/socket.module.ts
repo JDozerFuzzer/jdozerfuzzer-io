@@ -2,6 +2,7 @@ import { RedisModule } from "@nestjs-modules/ioredis";
 import { Module } from "@nestjs/common";
 import { SocketSubscriber } from "./socket-sub.service";
 import { EventEmitterModule } from "@nestjs/event-emitter";
+import { SocketServer } from "./socket-server.service";
 
 @Module({
     imports: [
@@ -22,7 +23,7 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
             ignoreErrors: false
         })
     ],
-    providers: [SocketSubscriber],
+    providers: [SocketSubscriber, SocketServer],
     exports: []
 })
 export class SocketModule {

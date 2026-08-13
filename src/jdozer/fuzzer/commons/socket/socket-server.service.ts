@@ -1,23 +1,40 @@
-import { Logger } from "@nestjs/common";
+import { Logger, OnModuleInit } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
-import { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
+import * as http from 'http';
+import { AddressInfo } from "net";
 
 
 @WebSocketGateway({
     cors: {
         origin: '*'
     },
-    transports: ['websocket', 'pooling']
+    transports: ['websocket', 'polling']
 })
-export class SocketServer implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class SocketServer implements OnModuleInit, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
 
     private readonly logger: Logger = new Logger(SocketServer.name);
 
     @WebSocketServer()
     readonly server: Server;
 
+    private httpServer: http.Server;
+
     constructor() { }
+
+    async onModuleInit() {
+        this.logger.log(`SocketServer initialized`);
+        const wsPort: number = parseInt(process.env.FUZZER_WS_PORT || '3001');
+
+        this.httpServer = http.createServer();
+        this.server.attach(this.httpServer);
+
+        this.httpServer.listen(wsPort, () => {
+            this.logger.log(`SocketServer running on port ${(this.httpServer.address() as AddressInfo).port}`);
+        });
+
+    }
 
     handleDisconnect(client: any) {
         this.logger.debug(`Client disconnected: ${client.id}`);
@@ -29,14 +46,19 @@ export class SocketServer implements OnGatewayInit, OnGatewayConnection, OnGatew
         client.emit('connection', { status: 'connected', id: client.id });
     }
 
-    afterInit(server: any) {
+    afterInit(server: Server) {
         this.logger.log(`SocketServer initialized`);
     }
 
     @OnEvent("jdozer:fuzzer")
     async handleEvent(data: any): Promise<void> {
-        this.logger.log(`jdozer:fuzzer ${JSON.stringify(data)}`);
+        this.logger.verbose(`[handleEvent] ${JSON.stringify(data.headers)}`);
         return this.broadcastMessage('jdozer:fuzzer', data);
+    }
+
+    @SubscribeMessage('jdozer:fuzzer')
+    handlerMessage(client: Socket, message: any) {
+        this.logger.debug(`[handlerMessage] ${JSON.stringify(message)}`);
     }
 
     broadcastMessage(event: string, message: any) {

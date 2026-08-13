@@ -2,7 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerConfig } from './jdozer/fuzzer/commons/logger-cfg';
-import { Logger } from '@nestjs/common';
+import { HttpServer, Logger } from '@nestjs/common';
+import { Server } from 'socket.io';
 
 async function bootstrap() {
 

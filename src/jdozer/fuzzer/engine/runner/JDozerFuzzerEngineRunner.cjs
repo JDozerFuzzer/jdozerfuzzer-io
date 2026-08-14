@@ -121,14 +121,11 @@ class jDozerFuzzerEngineRunner {
      */
     async #getCasesKeys(casesKeys) {
         try {
-            //this.#log.verbose(`#getCasesKeys: ${Object.keys(casesKeys)}`);
             let keys = Object.keys(casesKeys);
             let selectedCaseKeyAndReduce = {};
             for (let key of keys) {
                 if (casesKeys[key] != undefined) {
-                    //this.#log.verbose(`#getCasesKeys: ${key}:${casesKeys[key].length}`);
                     selectedCaseKeyAndReduce[key] = await this.#getDmmKeyAndReduce(casesKeys[key]);
-                    //this.#log.verbose(`#getCasesKeys: Reduce: ${key}:${selectedCaseKeyAndReduce[key].rest.length}`);
                 }
             }
             return selectedCaseKeyAndReduce;
@@ -147,7 +144,6 @@ class jDozerFuzzerEngineRunner {
     async #getDmmCases(fuzzerId, operationId) {
         try {
             let qry = 'JDF:'.concat(fuzzerId).concat(':ENG:CASES:').concat(operationId);
-            //this.#log.verbose(`#getDmmCases: Querying DMM cases with key: ${qry}`);
             let cases = JSON.parse(await this.#redis.get(qry));
             return (Object.keys(cases).length > 0) ? cases : undefined;
         } catch (e) {
@@ -367,8 +363,6 @@ class jDozerFuzzerEngineRunner {
 
             const requestBefore = JSON.parse(await this.#redis.get(reqKey));
             let requestAggregate = Object.assign(requestBefore, req);
-            //reqAgr.params = requestBefore.params;
-            //reqAgr.operationId = requestBefore.operationId;
             requestAggregate.agent = undefined;
             await this.#redis.set(reqKey, JSON.stringify(requestAggregate));
 

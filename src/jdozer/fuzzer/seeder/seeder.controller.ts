@@ -14,19 +14,14 @@ export class SeederController {
   @Post('/fuzzer')
   @UseInterceptors(FileInterceptor('contract'))
   async create(
-    @Body('name') name: string,
     @UploadedFile() contract: Express.Multer.File
   ) {
     if (!contract) {
       throw new BadRequestException('Contract file is required');
     }
 
-    if (!name) {
-      throw new BadRequestException('Name is required');
-    }
-
     const content = contract.buffer.toString('utf-8');
-    const fuzzerData = await this.seeder.run(name, content);
+    const fuzzerData = await this.seeder.run(content);
     return fuzzerData;
   }
 }

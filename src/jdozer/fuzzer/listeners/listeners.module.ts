@@ -3,6 +3,7 @@ import { StatusCodeValidator, StatusCodeValidatorSub } from './status-code-valid
 import { ResponseSchemaValidator, ResponseSchemaValidatorSub } from './response-schema-validator.service';
 import { VectorInsertion, VectorInsertionSub } from './vector-insertion.service';
 import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.service';
+import { TotalCases, TotalCasesSub } from './total-cases.service';
 
 @Module({
     providers: [
@@ -13,7 +14,9 @@ import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.servic
         VectorInsertionSub,
         VectorInsertion,
         VectorAnalyzeSub,
-        VectorAnalyze
+        VectorAnalyze,
+        TotalCasesSub,
+        TotalCases
     ],
     exports: [],
 })

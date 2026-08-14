@@ -25,7 +25,7 @@ export class SocketServer implements OnModuleInit, OnGatewayInit, OnGatewayConne
 
     async onModuleInit() {
         this.logger.log(`SocketServer initialized`);
-        const wsPort: number = parseInt(process.env.FUZZER_WS_PORT || '3001');
+        const wsPort: number = parseInt(process.env.FUZZER_WS_PORT || '3002');
 
         this.httpServer = http.createServer();
         this.server.attach(this.httpServer);

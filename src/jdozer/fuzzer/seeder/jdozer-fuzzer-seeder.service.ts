@@ -20,7 +20,7 @@ export class JDozerFuzzerSeeder {
         private readonly fuzzerDummy: JDozerFuzzerDummy
     ) { }
 
-    async run(name: string, contract: any): Promise<Fuzzer> {
+    async run(contract: any): Promise<Fuzzer> {
         try {
             await this.openApiLoad.build(contract);
             let fuzzer: Fuzzer = this.openApiLoad.getFuzzer();

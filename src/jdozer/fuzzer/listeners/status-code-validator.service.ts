@@ -45,7 +45,7 @@ export class StatusCodeValidator implements OnModuleInit {
 
     onModuleInit() {
         this.sub.handleEvent = async (event: any, channel: string) => {
-            if (event.headers.entityType === `fuzzer-engine` && event.headers.eventType === `after-response`) {
+            if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
                 await this.validate(event.payload.fuzzerId, event.payload.caseId);
             }
         }

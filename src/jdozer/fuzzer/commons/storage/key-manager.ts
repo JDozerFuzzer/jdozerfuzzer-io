@@ -74,6 +74,10 @@ export class KeyManager {
     return this.forFuzz(fuzzerId).concat(`:DMM:*:*:`).concat(dmmId);
   }
 
+  public dmmOperationPattern(fuzzerId: UUID, operation: string) {
+    return this.forFuzz(fuzzerId).concat(`:DMM:${operation}:*:*`);
+  }
+
   public dmmAllPattern(fuzzerId: UUID): string {
     return this.forFuzz(fuzzerId).concat(`:DMM:*`);
   }

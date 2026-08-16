@@ -27,9 +27,47 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
     }
 
     handleEvent(data: any, channel: string): Promise<void> | void {
+        if (!this.filter(data.headers.entityType, data.headers.eventType)) {
+            return;
+        }
         this.eventEmitter.emit(`jdozer:fuzzer`, data);
-        return;
     }
 
+    private readonly eventKeys = [
+        `counts:total-cases`,
+        `fuzzer-seeder:builder-successful`,
+        `fuzzer-engine:config`,
+        `fuzzer-engine:started`,
+        `fuzzer-engine:attack-completed`,
+        `fuzzer-engine:stopped`,
+        `fuzzer-engine:after-response`,
+        `status-code:validation`,
+        `response-schema:validation`,
+        `vector-insertion:success`
+    ];
+
+    private filter(entityType: string, eventType: string) {
+        try {
+            const key: string = `${entityType}:${eventType}`;
+            for (const eventKey of this.eventKeys) {
+                if (eventKey.includes('*')) {
+                    const escaped = eventKey
+                        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+                        .replace(/\*/g, '.*');
+                    const regex = new RegExp(`^${escaped}$`);
+                    if (regex.test(key)) {
+                        return true;
+                    }
+                } else if (eventKey === key) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (e) {
+            this.logger.error(`[filter] Error filtering event: ${e.message}`);
+            return false;
+        }
+    }
 
 }
+

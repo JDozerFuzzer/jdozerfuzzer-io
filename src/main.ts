@@ -21,6 +21,11 @@ async function bootstrap() {
     logger: LoggerConfig.logLevels('JDozerFuzzer-Plataform')
   });
 
+  app.enableCors({
+    origin: ['http://localhost:5173'],
+    methods: ['POST', 'GET']
+  });
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 

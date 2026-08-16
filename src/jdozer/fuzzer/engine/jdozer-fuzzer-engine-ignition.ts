@@ -51,9 +51,8 @@ export class JDozerFuzzerEngineIgnition {
             this.redisService.set(this.keyManger.forEngine(fuzzerId as string), engCfg);
 
             const engCfgYml = YAML.stringify(engCfg);
+            await this.engineConfigEvent(engCfg, cases.length, fuzzerId);
             this.exec(engCfgYml, fuzzerId as string);
-
-            await this.engineStartedEvent(engCfg, cases.length, fuzzerId);
 
             this.log.log('Fuzzer Engine started!');
 
@@ -123,6 +122,7 @@ export class JDozerFuzzerEngineIgnition {
 
             this.log.log(`Engine process started with id ${engineProcess.pid}`);
             engineProcess.unref();
+            this.engineStartedEvent(this.fuzzer.id as UUID);
         });
     }
 
@@ -151,7 +151,7 @@ export class JDozerFuzzerEngineIgnition {
         }
     }
 
-    private async engineStartedEvent(config: any, cases: number, fuzzerId: UUID): Promise<void> {
+    private async engineConfigEvent(config: any, cases: number, fuzzerId: UUID): Promise<void> {
         const payload: any = {
             fuzzerId,
             phases: {},
@@ -174,11 +174,15 @@ export class JDozerFuzzerEngineIgnition {
             };
         }
 
-        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'engine-started', 'fuzzer-engine', payload);
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'config', 'fuzzer-engine', payload);
+    }
+
+    private async engineStartedEvent(fuzzerId: UUID): Promise<void> {
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'started', 'fuzzer-engine', { fuzzerId });
     }
 
     private async engineStoppedEvent(fuzzerId: UUID): Promise<void> {
-        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'engine-stopped', 'fuzzer-engine', { fuzzerId });
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'stopped', 'fuzzer-engine', { fuzzerId });
     }
 
 }

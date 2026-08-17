@@ -48,6 +48,42 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  public async scan(pattern: RegExp, key: string): Promise<string[]> {
+    try {
+      const result: string[] = [];
+      let cursor = '0';
+
+      do {
+        const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', key, 'COUNT', 100);
+        cursor = nextCursor;
+        keys.forEach(k => {
+          if (pattern.test(k)) {
+            result.push(k);
+          }
+        });
+      } while (cursor !== '0');
+
+      return result;
+    } catch (error) {
+      this.log.error(`Error in SCAN operation for pattern ${pattern}:`, error);
+      throw error;
+    }
+  }
+
+  public async mget<T>(keys: Array<string>): Promise<T[]> {
+    try {
+      const result: T[] = [];
+      const data = await this.client.mget(keys);
+      data.filter((k): k is string => k !== null).forEach(d => {
+        result.push(JSON.parse(d));
+      });
+      return result;
+    } catch (error) {
+      this.log.error(`Error in MGET operation for keys ${keys}:`, error);
+      throw error;
+    }
+  }
+
   async flushall(): Promise<void> {
     try {
       await this.client.flushall();

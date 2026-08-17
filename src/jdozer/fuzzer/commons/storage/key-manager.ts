@@ -102,5 +102,9 @@ export class KeyManager {
     return this.forEngine(fuzzerId).concat(`:${operationId}:*:RES`);
   }
 
+  public fuzzerIdsPattern(): RegExp {
+    return /^JDF:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  }
+
 
 }

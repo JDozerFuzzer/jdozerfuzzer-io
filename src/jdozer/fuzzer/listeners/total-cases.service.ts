@@ -15,7 +15,7 @@ export class TotalCasesSub implements EventConsumer, OnModuleInit {
 
     readonly channels: string[] = ['jdozer:fuzzer:engine'];
     readonly entityType: string = 'fuzzer-engine';
-    readonly eventType: string = 'engine-started';
+    readonly eventType: string = 'started';
 
     constructor(
         private readonly registry: EventConsumerRegistry
@@ -55,23 +55,25 @@ export class TotalCases implements OnModuleInit {
     public async counts(fuzzerId: UUID) {
         try {
             const counts: any = {};
+            const perOperations: any = {};
             const fuzzer: Fuzzer = await this.redisService.get(this.keyManager.forFuzz(fuzzerId));
             let total: number = 0;
 
             for (const op of fuzzer.operationIds) {
-                counts[`${op}`] = {};
+                perOperations[`${op}`] = {};
                 let keys: string[] = await this.redisService.getKeys(this.keyManager.dmmOperationPattern(fuzzerId, op));
                 keys.forEach(key => {
                     let s = key.split(':');
-                    if (counts[`${op}`][`${s[4]}`]) {
-                        counts[`${op}`][`${s[4]}`]++;
+                    if (perOperations[`${op}`][`${s[4]}`]) {
+                        perOperations[`${op}`][`${s[4]}`]++;
                     } else {
-                        counts[`${op}`][`${s[4]}`] = 1;
+                        perOperations[`${op}`][`${s[4]}`] = 1;
                     }
                     total++;
                 });
             }
             counts.total = total;
+            counts.perOperations = perOperations;
             await this.redisService.set(this.keyManager.forFuzz(fuzzerId).concat(`:DMM:COUNTS`), counts);
             await this.redisPubSub.publish("jdozer:fuzzer:listeners", fuzzerId, "total-cases", "counts", counts);
 

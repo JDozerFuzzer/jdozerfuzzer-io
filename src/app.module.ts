@@ -4,10 +4,10 @@ import { VectorsModule } from './jdozer/fuzzer/vectors/vectors.module';
 import { PubSubModule } from './jdozer/fuzzer/commons/pubsub/pub-sub-module';
 import { EngineModule } from './jdozer/fuzzer/engine/engine.module';
 import { SeederModule } from './jdozer/fuzzer/seeder/seeder.module';
-import { SeederController } from './jdozer/fuzzer/seeder/seeder.controller';
 import { ListenersModule } from './jdozer/fuzzer/listeners/listeners.module';
 import { SocketModule } from './jdozer/fuzzer/commons/socket/socket.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { ApiModule } from './jdozer/fuzzer/api/api.module';
 
 @Module({
   imports: [
@@ -26,9 +26,10 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     VectorsModule,
     EngineModule,
     ListenersModule,
-    SocketModule
+    SocketModule,
+    ApiModule
   ],
-  controllers: [SeederController],
+  controllers: [],
   providers: [],
 })
 export class AppModule { }

@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerConfig } from './jdozer/fuzzer/commons/logger-cfg';
-import { HttpServer, Logger } from '@nestjs/common';
+import { HttpServer, Logger, ValidationPipe } from '@nestjs/common';
 import { Server } from 'socket.io';
 
 async function bootstrap() {
@@ -25,6 +25,8 @@ async function bootstrap() {
     origin: ['http://localhost:5173'],
     methods: ['POST', 'GET']
   });
+
+  app.useGlobalPipes(new ValidationPipe());
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

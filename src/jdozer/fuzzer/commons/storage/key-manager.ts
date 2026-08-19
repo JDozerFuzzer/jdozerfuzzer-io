@@ -58,6 +58,12 @@ export class KeyManager {
     return this.forEngine(fuzzerId).concat(`:*:`).concat(requestId).concat(`:REQ`);
   }
 
+  // JDF:8a015184-b979-4058-bd9b-11384315b88c:ENG:addPet:02ffeff5-3456-42e2-a8b5-de9e7d01c756:REQ
+  public forRequest(fuzzerId: UUID, operation: string, requestId: UUID) {
+    return this.forEngine(fuzzerId).concat(`:${operation}:`).concat(requestId).concat(`:REQ`);
+  }
+
+
   public responseIdPattern(fuzzerId: UUID, responseId: UUID) {
     return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:RES`);
   }
@@ -90,6 +96,10 @@ export class KeyManager {
     return this.forFuzz(fuzzerId).concat(`:DMM:`).concat(operationId).concat(`:${context}:`).concat(id);
   }
 
+  public dmmIdPattern(fuzzerId: UUID, id: UUID) {
+    return this.forFuzz(fuzzerId).concat(`:DMM:*:*:`).concat(id);
+  }
+
   public forResponseVector(fuzzerId: UUID, operationId: string, responseId: UUID): string {
     return this.forEngine(fuzzerId).concat(`:${operationId}:`).concat(responseId).concat(`:VEC`);
   }
@@ -104,6 +114,10 @@ export class KeyManager {
 
   public fuzzerIdsPattern(): RegExp {
     return /^JDF:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  }
+
+  public forFuzzingCase(fuzzerId: UUID, operationId: string, requestId: UUID) {
+    return this.forEngine(fuzzerId).concat(`:${operationId}:`).concat(requestId).concat(`:fuzzingCase`);
   }
 
 

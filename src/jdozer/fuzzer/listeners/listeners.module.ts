@@ -4,6 +4,7 @@ import { ResponseSchemaValidator, ResponseSchemaValidatorSub } from './response-
 import { VectorInsertion, VectorInsertionSub } from './vector-insertion.service';
 import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.service';
 import { TotalCases, TotalCasesSub } from './total-cases.service';
+import { FuzzingCaseValidatorSub, FuzzingCaseValidator } from './fuzzing-case-validator.service';
 
 @Module({
     providers: [
@@ -16,7 +17,9 @@ import { TotalCases, TotalCasesSub } from './total-cases.service';
         VectorAnalyzeSub,
         VectorAnalyze,
         TotalCasesSub,
-        TotalCases
+        TotalCases,
+        FuzzingCaseValidatorSub,
+        FuzzingCaseValidator
     ],
     exports: [],
 })

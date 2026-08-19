@@ -48,13 +48,13 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  public async scan(pattern: RegExp, key: string): Promise<string[]> {
+  public async scanWithPattern(pattern: RegExp, keyPattern: string): Promise<string[]> {
     try {
       const result: string[] = [];
       let cursor = '0';
 
       do {
-        const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', key, 'COUNT', 100);
+        const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', keyPattern, 'COUNT', 100);
         cursor = nextCursor;
         keys.forEach(k => {
           if (pattern.test(k)) {
@@ -65,7 +65,25 @@ export class RedisService implements OnModuleDestroy {
 
       return result;
     } catch (error) {
-      this.log.error(`Error in SCAN operation for pattern ${pattern}:`, error);
+      this.log.error(`Error in SCANWithPattern operation for pattern ${pattern} and keyPattern ${keyPattern}:`, error);
+      throw error;
+    }
+  }
+
+  public async scan(keyPattern: string): Promise<string[]> {
+    try {
+      const result: string[] = [];
+      let cursor = '0';
+
+      do {
+        const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', keyPattern, 'COUNT', 100);
+        cursor = nextCursor;
+        result.push(...keys);
+      } while (cursor !== '0');
+
+      return result;
+    } catch (error) {
+      this.log.error(`Error in SCAN operation for pattern ${keyPattern}:`, error);
       throw error;
     }
   }

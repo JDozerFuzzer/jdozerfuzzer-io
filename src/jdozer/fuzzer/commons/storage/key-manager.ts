@@ -73,7 +73,7 @@ export class KeyManager {
   }
 
   public statusCodePattern(fuzzerId: UUID, responseId: UUID) {
-    return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:statusCode`);
+    return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:schemaResponseStatusCode`);
   }
 
   public dmmPattern(fuzzerId: UUID, dmmId: UUID) {

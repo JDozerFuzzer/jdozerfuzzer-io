@@ -27,7 +27,6 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
     }
 
     handleEvent(data: any, channel: string): Promise<void> | void {
-        this.logger.error(`[${data.headers.entityType}:${data.headers.eventType}] Event not found`);
         if (!this.filter(data.headers.entityType, data.headers.eventType)) {
             return;
         }
@@ -42,8 +41,8 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
         `fuzzer-engine:attack-completed`,
         `fuzzer-engine:stopped`,
         `fuzzer-engine:after-response`,
-        `status-code:validation`,
-        `response-schema:validation`,
+        `schema-response:status-code`,
+        `schema-response:payload`,
         `vector-insertion:success`,
         `fuzzing-case:validation`
     ];

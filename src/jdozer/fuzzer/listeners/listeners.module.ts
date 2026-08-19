@@ -5,6 +5,7 @@ import { VectorInsertion, VectorInsertionSub } from './vector-insertion.service'
 import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.service';
 import { TotalCases, TotalCasesSub } from './total-cases.service';
 import { FuzzingCaseValidatorSub, FuzzingCaseValidator } from './fuzzing-case-validator.service';
+import { SchemaRequestPayload, SchemaRequestPayloadSubscriber } from './schema-request-payload.service';
 
 @Module({
     providers: [
@@ -19,7 +20,9 @@ import { FuzzingCaseValidatorSub, FuzzingCaseValidator } from './fuzzing-case-va
         TotalCasesSub,
         TotalCases,
         FuzzingCaseValidatorSub,
-        FuzzingCaseValidator
+        FuzzingCaseValidator,
+        SchemaRequestPayloadSubscriber,
+        SchemaRequestPayload
     ],
     exports: [],
 })

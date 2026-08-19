@@ -24,7 +24,7 @@ export class SchemaResponseStatusCodeSub implements EventConsumer, OnModuleInit 
 
     onModuleInit() {
         this.registry.register(this);
-        this.logger.log("SchemaResponseStatusCodeSub registered");
+        this.logger.log(`${SchemaResponseStatusCodeSub.name} registered`);
     }
 
     async handleEvent(event: any, channel: string): Promise<void> {

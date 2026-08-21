@@ -90,6 +90,7 @@ export class RedisService implements OnModuleDestroy {
 
   public async mget<T>(keys: Array<string>): Promise<T[]> {
     try {
+      if (!keys || keys.length === 0) return [];
       const result: T[] = [];
       const data = await this.client.mget(keys);
       data.filter((k): k is string => k !== null).forEach(d => {

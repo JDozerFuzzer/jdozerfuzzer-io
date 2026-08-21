@@ -208,6 +208,11 @@ export class JDozerOpenApiLoad {
     }
   }
 
+  public getEncodeContract(): string {
+    const encode: string = Buffer.from(JSON.stringify(this.contract)).toString(`base64`);
+    return encode;
+  }
+
   /**
   async loadContract(name: string, content: string): Promise<any> {
 

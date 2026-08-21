@@ -25,7 +25,8 @@ export class JDozerFuzzerSeeder {
             await this.openApiLoad.build(contract);
             let fuzzer: Fuzzer = this.openApiLoad.getFuzzer();
             let operations = this.openApiLoad.getOperations();
-
+            let encodeContract: string = this.openApiLoad.getEncodeContract();
+            await this.redisService.set(this.keyManager.forApi(fuzzer.id), encodeContract);
             await this.redisService.set(this.keyManager.forFuzz(fuzzer.id), fuzzer);
 
             operations.forEach(async (op) => {

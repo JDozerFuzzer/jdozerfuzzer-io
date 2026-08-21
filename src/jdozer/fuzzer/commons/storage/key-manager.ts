@@ -68,6 +68,10 @@ export class KeyManager {
     return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:RES`);
   }
 
+  public caseIdPattern(fuzzerId: UUID, responseId: UUID) {
+    return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:*`);
+  }
+
   public responseToOperation(responseKey: string) {
     return responseKey.replaceAll("ENG", "OP").split(`:`).slice(0, 4).join(`:`);
   }
@@ -118,6 +122,14 @@ export class KeyManager {
 
   public forFuzzingCase(fuzzerId: UUID, operationId: string, requestId: UUID) {
     return this.forEngine(fuzzerId).concat(`:${operationId}:`).concat(requestId).concat(`:fuzzingCase`);
+  }
+
+  public requestListPattern(fuzzerId: UUID, operationId: string) {
+    return this.forEngine(fuzzerId).concat(`:${operationId}:*:REQ`);
+  }
+
+  public requestSummaryListPattern(fuzzerId: UUID, operationId: string): string {
+    return this.forEngine(fuzzerId).concat(`:${operationId}:*:SUMMARY`);
   }
 
 

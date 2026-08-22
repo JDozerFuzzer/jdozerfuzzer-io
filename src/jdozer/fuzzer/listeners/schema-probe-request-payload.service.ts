@@ -8,11 +8,12 @@ import { UUID } from "crypto";
 import { KeyManager } from "../commons/storage/key-manager";
 import { SchemaUtils } from "../commons/schema-utils";
 import { SchemaValidationFinding, SchemaValidationFindings } from "./schema-request-payload.types";
+import { request } from "http";
 
 @Injectable()
-export class SchemaRequestPayloadSubscriber implements EventConsumer, OnModuleInit {
+export class SchemaProbeRequestPayloadSub implements EventConsumer, OnModuleInit {
 
-    private readonly logger = new Logger(SchemaRequestPayloadSubscriber.name);
+    private readonly logger = new Logger(SchemaProbeRequestPayloadSub.name);
 
     channels = ["jdozer:fuzzer:engine"];
     entityType = "fuzzer-engine";
@@ -24,7 +25,7 @@ export class SchemaRequestPayloadSubscriber implements EventConsumer, OnModuleIn
 
     onModuleInit() {
         this.registry.register(this);
-        this.logger.log(`${SchemaRequestPayloadSubscriber.name} registered`);
+        this.logger.log(`${SchemaProbeRequestPayloadSub.name} registered`);
     }
 
     async handleEvent(event: any, channel: string): Promise<void> {
@@ -33,16 +34,15 @@ export class SchemaRequestPayloadSubscriber implements EventConsumer, OnModuleIn
 }
 
 @Injectable()
-export class SchemaRequestPayload implements OnModuleInit {
+export class SchemaProbeRequestPayload implements OnModuleInit {
 
-    private readonly logger = new Logger(SchemaRequestPayload.name);
+    private readonly logger = new Logger(SchemaProbeRequestPayload.name);
     private readonly keyManager = new KeyManager();
-    private readonly schemaUtils = new SchemaUtils();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: SchemaRequestPayloadSubscriber
+        private readonly sub: SchemaProbeRequestPayloadSub
     ) { }
 
     onModuleInit() {
@@ -65,32 +65,45 @@ export class SchemaRequestPayload implements OnModuleInit {
                     return;
                 }
                 let op = await this.redisService.get(this.keyManager.responseToOperation(keys[0]));
-                let dataPayload: { valid: boolean, errors?: any[] } = this.schemaUtils.validate(op.req.payload, Buffer.from(req.payload, "base64").toString("utf-8"));
-                let res: any = await this.redisService.get(keys[0].replaceAll(':REQ', ':RES'));
-                if (dataPayload) {
-                    const finding: SchemaValidationFinding = this.getSchemaValidationFinding(dataPayload.valid, res.statusCode);
-                    await this.redisService.set(keys[0].replaceAll(':REQ', ':schemaRequestPayload'), {
-                        id: keys[0],
-                        fuzzerId: fuzzerId,
-                        operationId: op.name,
-                        finding: finding
-                    });
-                    await this.redisPubSub.publish('jdozer:fuzzer:listeners', fuzzerId, `payload`, `schema-request`, {
-                        id: keys[0],
-                        fuzzerId: fuzzerId,
-                        operationId: op.name,
-                        isValid: finding.isValid,
-                        statusCategory: finding.statusCategory,
-                        severity: finding.severity,
-                        type: finding.findingType
-                    });
+                const schemaUtils = new SchemaUtils(op.req.payload);
+                let dataPayload: { valid: boolean, errors?: any[] } = schemaUtils.validate(JSON.parse(Buffer.from(req.payload, "base64").toString("utf-8")));
+                const validation: any = {
+                    id: req.uuidReq,
+                    fuzzerId: fuzzerId,
+                    operationId: op.name,
+                    isValid: dataPayload.valid,
+                    errors: dataPayload
+                };
 
-                } else {
-                    this.logger.warn(`[validate] Response not found for key pattern ${this.keyManager.responseIdPattern(fuzzerId, responseId)}`);
-                }
+                await this.redisService.set(this.keyManager.schemaProbeRequestPayloadKey(fuzzerId, op.name, responseId), validation);
+                await this.redisPubSub.publish(`jdozer:fuzzer:listeners`, fuzzerId, `request`, `schema-probe`, validation);
+
+                /**
+                                let res: any = await this.redisService.get(keys[0].replaceAll(':REQ', ':RES'));
+                                if (dataPayload) {
+                                    const finding: SchemaValidationFinding = this.getSchemaValidationFinding(dataPayload.valid, res.statusCode);
+                                    finding.details = dataPayload;
+                                    await this.redisService.set(keys[0].replaceAll(':REQ', ':schemaRequestPayload'), {
+                                        id: responseId,
+                                        fuzzerId: fuzzerId,
+                                        operationId: op.name,
+                                        finding: finding
+                                    });
+                                    await this.redisPubSub.publish('jdozer:fuzzer:listeners', fuzzerId, `payload`, `schema-request`, {
+                                        id: keys[0],
+                                        fuzzerId: fuzzerId,
+                                        operationId: op.name,
+                                        isValid: finding.isValid,
+                                        statusCategory: finding.statusCategory,
+                                        severity: finding.severity,
+                                        type: finding.findingType
+                                    });
+                
+                                } else {
+                                    this.logger.warn(`[validate] Response not found for key pattern ${this.keyManager.responseIdPattern(fuzzerId, responseId)}`);
+                                }
+                */
             }
-
-
 
         } catch (e) {
             this.logger.error(`[validate] An error has occurred: ${e.message}`, e);

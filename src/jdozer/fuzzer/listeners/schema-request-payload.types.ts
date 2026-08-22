@@ -10,6 +10,7 @@ export interface SchemaValidationFinding {
     /** Descripción del hallazgo */
     description: string;
     /** Nivel de criticidad (1 = baja, 5 = crítica) */
+    details?: any,
     severity: 1 | 2 | 3 | 4 | 5;
     /** Etiquetas para categorización */
     tags: string[];

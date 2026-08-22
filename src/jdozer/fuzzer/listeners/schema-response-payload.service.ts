@@ -36,7 +36,6 @@ export class SchemaResponsePayload implements OnModuleInit {
 
     private readonly logger = new Logger(SchemaResponsePayload.name);
     private readonly keyManager = new KeyManager();
-    private readonly schemaUtils = new SchemaUtils();
 
     constructor(
         private readonly redisService: RedisService,
@@ -47,45 +46,34 @@ export class SchemaResponsePayload implements OnModuleInit {
     onModuleInit() {
         this.sub.handleEvent = async (event, channel) => {
             if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
-                await this.validate(event.headers.entityId as UUID, event.payload.id as UUID);
+                await this.validate(event.headers.entityId as UUID, event.payload.operationId, event.payload.id as UUID);
             }
         }
     }
 
-    async validate(fuzzerId: UUID, responseId: UUID) {
+    async validate(fuzzerId: UUID, operationId: string, responseId: UUID) {
         try {
 
-            const key: string = (await this.redisService.getKeys(this.keyManager.statusCodePattern(fuzzerId, responseId)))[0];
-            let statusCode: any = await this.redisService.get(key);
-            const rKeys: string[] = await this.redisService.getKeys(this.keyManager.responseIdPattern(fuzzerId, responseId));
-            const res: any = await this.redisService.get(rKeys[0]);
+            let statusCodeSchema: any = await this.redisService.get(this.keyManager.schemaStatusCodeKey(fuzzerId, operationId, responseId));
+            const res: any = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, responseId));
             let validation: any;
 
-            if ([`exact`, `wildcard`, `default`].includes(statusCode.matchType)) {
+            if ([`exact`, `wildcard`, `default`].includes(statusCodeSchema.matchType)) {
 
-                let resPattern = this.keyManager.responseIdPattern(fuzzerId, responseId);
-                let keys = await this.redisService.getKeys(resPattern);
-                if (keys.length === 1) {
-                    let op = await this.redisService.get(this.keyManager.responseToOperation(keys[0]));
-
-                    let resPayload = this.undecodePayload(res.payload);
-                    let schema = this.getSchema(op, statusCode.matched);
-
-                    validation = this.validation(resPayload, schema);
-
-                } else {
-                    this.logger.error(`[validate] Response not found for key pattern ${resPattern}`);
-                    throw new Error("Response not found");
-                }
-
+                let op = await this.redisService.get(this.keyManager.forOperation(res.operationId, fuzzerId));
+                let undecodedPayload = this.undecodePayload(res.payload);
+                let schema = this.getSchema(op, statusCodeSchema.matched);
+                validation = this.validation(undecodedPayload, schema);
             } else {
                 validation = this.validation(res.payload, undefined);
             }
 
             validation.id = responseId;
-            await this.redisService.set(rKeys[0].replace(':RES', ':schemaResponsePayload'), validation);
-            await this.redisPubSub.publish("jdozer:fuzzer:listeners", fuzzerId, "payload", "schema-response", validation);
+            validation.fuzzerId = fuzzerId;
+            validation.operationId = res.operationId;
 
+            await this.redisService.set(this.keyManager.schemaProbeResponsePayloadKey(fuzzerId, res.operationId, res.uuidReq), validation);
+            await this.redisPubSub.publish("jdozer:fuzzer:listeners", fuzzerId, "payload", "schema-response", validation);
 
         } catch (error) {
             this.logger.error(`[validate] Error: ${error}`);
@@ -94,33 +82,34 @@ export class SchemaResponsePayload implements OnModuleInit {
     }
 
     private validation(payload: any, schema: any): Validation {
-        if (payload && schema) {
-            const v = this.schemaUtils.validate(schema, payload);
+        if (schema && payload) {
+            const schemaUtils = new SchemaUtils(schema);
+            const v = schemaUtils.validate(payload);
             return {
                 isValid: v.valid,
-                validation: v.valid ? VALIDATION_CASES.SCHEMA_VALIDATION_SUCCESS : VALIDATION_CASES.SCHEMA_VALIDATION_ERROR,
-                details: v.errors
+                finding: v.valid ? VALIDATION_CASES.SCHEMA_VALIDATION_SUCCESS : VALIDATION_CASES.SCHEMA_VALIDATION_ERROR,
+                errors: v.errors
             } as Validation;
         } else if (schema && !payload) {
             return {
                 isValid: false,
-                validation: VALIDATION_CASES.EMPTY_RESPONSE_VALID
+                finding: VALIDATION_CASES.EMPTY_RESPONSE_VALID
             } as Validation;
         } else if (!schema && payload) {
             return {
                 isValid: false,
-                validation: VALIDATION_CASES.UNDOCUMENTED_DATA_LEAK
+                finding: VALIDATION_CASES.UNDOCUMENTED_DATA_LEAK
             } as Validation;
         } else if (!schema && !payload) {
             return {
                 isValid: true,
-                validation: VALIDATION_CASES.EMPTY_RESPONSE_VALID
+                finding: VALIDATION_CASES.EMPTY_RESPONSE_VALID
             } as Validation;
         }
 
         return {
             isValid: true,
-            validation: VALIDATION_CASES.UNREADABLE_RESPONSE_PAYLOAD
+            finding: VALIDATION_CASES.UNREADABLE_RESPONSE_PAYLOAD
         } as Validation;
     }
 
@@ -162,9 +151,11 @@ export class SchemaResponsePayload implements OnModuleInit {
 
 export interface Validation {
     id: UUID,
+    fuzzerId: UUID,
+    operationId: string,
     isValid: boolean;
-    validation: typeof VALIDATION_CASES[keyof typeof VALIDATION_CASES];
-    details?: any;
+    finding: typeof VALIDATION_CASES[keyof typeof VALIDATION_CASES];
+    errors: any;
 }
 
 export const VALIDATION_CASES = {

@@ -8,9 +8,9 @@ import { UUID } from "crypto";
 
 
 @Injectable()
-export class FuzzingCaseValidatorSub implements EventConsumer, OnModuleInit {
+export class SchemasProbeSummarySub implements EventConsumer, OnModuleInit {
 
-    private readonly logger = new Logger(FuzzingCaseValidatorSub.name);
+    private readonly logger = new Logger(SchemasProbeSummarySub.name);
 
     readonly channels = ["jdozer:fuzzer:engine"];
     readonly entityType = "fuzzer-engine";
@@ -31,15 +31,15 @@ export class FuzzingCaseValidatorSub implements EventConsumer, OnModuleInit {
 }
 
 @Injectable()
-export class FuzzingCaseValidator implements OnModuleInit {
+export class SchemasProbeSummary implements OnModuleInit {
 
-    private readonly logger = new Logger(FuzzingCaseValidator.name);
+    private readonly logger = new Logger(SchemasProbeSummary.name);
     private readonly keyManager = new KeyManager();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: FuzzingCaseValidatorSub
+        private readonly sub: SchemasProbeSummarySub
     ) { }
 
     onModuleInit() {
@@ -50,16 +50,15 @@ export class FuzzingCaseValidator implements OnModuleInit {
         };
     }
 
-    public async validate(fuzzerId: UUID, responseId: UUID): Promise<void> {
+    public async validate(fuzzerId: UUID, requestId: UUID): Promise<void> {
         try {
-            const resKeys: string[] = await this.redisService.scan(this.keyManager.responseIdPattern(fuzzerId, responseId));
-            if (resKeys.length != 1) {
-                this.logger.error(`[validate] Response key not found for fuzzerId: ${fuzzerId} and responseId: ${responseId}`);
+            const reqKeys: string[] = await this.redisService.scan(this.keyManager.requestIdPattern(fuzzerId, requestId));
+            if (reqKeys.length != 1) {
+                this.logger.error(`[validate] Request key not found for fuzzerId: ${fuzzerId} and requestId: ${requestId}`);
                 return;
             }
-            const response: any = await this.redisService.get(resKeys[0]);
-            const request: any = await this.redisService.get(this.keyManager.forRequest(fuzzerId, response.operationId, response.uuidReq));
 
+            const request: any = await this.redisService.get(reqKeys[0]);
             const dmmkeys: string[] = [];
             for (let k of Object.keys(request.params)) {
                 let keys = await this.redisService.scan(this.keyManager.dmmIdPattern(fuzzerId, request.params[k]));
@@ -71,15 +70,17 @@ export class FuzzingCaseValidator implements OnModuleInit {
             }
 
             const dmms: any[] = await this.redisService.mget(dmmkeys);
-            const validation: any = {};
-            validation.isValidRequest = dmms.every((dmm) => dmm.valid);
-            validation.statusCode = response.statusCode;
-            validation.operationId = response.operationId;
-            validation.method = request.method;
-            validation.id = request.uuidReq;
+            const onlySchemas: any[] = dmms.filter((dmm) => !dmm.vectorId);
+            const probes: any = {
+                id: request.uuidReq,
+                fuzzerId: fuzzerId,
+                operationId: request.operationId,
+                isValid: onlySchemas.every((dmm) => dmm.valid),
+                probes: onlySchemas
+            };
 
-            await this.redisService.set(this.keyManager.forFuzzingCase(fuzzerId, response.operationId, request.uuidReq), validation);
-            await this.redisPubSub.publish(`jdozer:fuzzer:listeners`, fuzzerId, `validation`, `fuzzing-case`, validation);
+            await this.redisService.set(this.keyManager.schemaProbeSummaryKey(fuzzerId, request.operationId, request.uuidReq), probes);
+            await this.redisPubSub.publish(`jdozer:fuzzer:listeners`, fuzzerId, `summary`, `schema-probe`, probes);
 
             return;
 

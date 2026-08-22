@@ -1,17 +1,17 @@
 import { Module } from '@nestjs/common';
-import { SchemaResponseStatusCode, SchemaResponseStatusCodeSub } from './schema-response-status-code.service';
+import { SchemaStatusCodeSub, SchemaStatusCode } from './schema-status-code.service';
 import { SchemaResponsePayload, SchemaResponsePayloadSub } from './schema-response-payload.service';
 import { VectorInsertion, VectorInsertionSub } from './vector-insertion.service';
 import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.service';
 import { TotalCases, TotalCasesSub } from './total-cases.service';
-import { FuzzingCaseValidatorSub, FuzzingCaseValidator } from './fuzzing-case-validator.service';
-import { SchemaRequestPayload, SchemaRequestPayloadSubscriber } from './schema-request-payload.service';
+import { SchemasProbeSummarySub, SchemasProbeSummary } from './schemas-probe-summary.service';
+import { SchemaProbeRequestPayload, SchemaProbeRequestPayloadSub } from './schema-probe-request-payload.service';
 import { ResponseSummary, ResponseSummarySubscriber } from './response-summary.service';
 
 @Module({
     providers: [
-        SchemaResponseStatusCodeSub,
-        SchemaResponseStatusCode,
+        SchemaStatusCodeSub,
+        SchemaStatusCode,
         SchemaResponsePayloadSub,
         SchemaResponsePayload,
         VectorInsertionSub,
@@ -20,10 +20,10 @@ import { ResponseSummary, ResponseSummarySubscriber } from './response-summary.s
         VectorAnalyze,
         TotalCasesSub,
         TotalCases,
-        FuzzingCaseValidatorSub,
-        FuzzingCaseValidator,
-        SchemaRequestPayloadSubscriber,
-        SchemaRequestPayload,
+        SchemasProbeSummarySub,
+        SchemasProbeSummary,
+        SchemaProbeRequestPayloadSub,
+        SchemaProbeRequestPayload,
         ResponseSummarySubscriber,
         ResponseSummary
     ],

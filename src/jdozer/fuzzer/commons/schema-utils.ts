@@ -11,6 +11,12 @@ export class SchemaUtils {
     private readonly MODERN_SCHEMA_VERSION = 'modern';
     private readonly DRAFT_04_SCHEMA_VERSION = 'draft-04';
     private ajv: Ajv;
+    private validateFunction: ValidateFunction;
+
+    constructor(schema: JsonSchema) {
+        const enforces = this.enforceStrictProperties(schema);
+        this.validatorConfig(enforces);
+    }
 
     public enforceStrictProperties(schema: JsonSchema): any {
 
@@ -42,7 +48,7 @@ export class SchemaUtils {
         return newSchema;
     }
 
-    public getValidator(schema: any): Ajv {
+    public validatorConfig(schema: JsonSchema): ValidateFunction {
         const ajvConf = {
             allErrors: true,
             verbose: true,
@@ -67,8 +73,8 @@ export class SchemaUtils {
         });
 
         this.addInt64Keyword();
-
-        return this.ajv;
+        this.validateFunction = this.ajv.compile(schema);
+        return this.validateFunction;
     }
 
     private detectSchemaVersion(schema: any): string {
@@ -103,18 +109,16 @@ export class SchemaUtils {
 
     }
 
-    validate(schema: any, data: any): { valid: boolean; errors?: any[] | undefined } {
-
-        this.getValidator(schema);
+    public validate(data: any): { valid: boolean; errors?: any[] | undefined } {
 
         if (typeof data === 'number' && data > Number.MAX_SAFE_INTEGER) {
             data = data.toString();
         }
 
         try {
-            const validate = this.ajv.compile(schema);
-            const valid = validate(data);
-            return { valid, errors: validate.errors ? validate.errors : undefined };
+            //            const validate = this.ajv.compile(schema);
+            const valid = this.validateFunction(data);
+            return { valid, errors: this.validateFunction.errors ? this.validateFunction.errors : undefined };
         } catch (error) {
             return { valid: false, errors: [{ message: error.message }] };
         }

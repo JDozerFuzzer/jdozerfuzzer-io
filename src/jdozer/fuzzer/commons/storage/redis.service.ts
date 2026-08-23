@@ -113,17 +113,6 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  async publish(channel: string, event: any): Promise<void> {
-    try {
-      const data = JSON.stringify(event);
-      const subscribers = await this.client.publish(channel, data);
-      this.log.verbose(`Message posted in the channel ${channel} (${subscribers} subscribers)`);
-    } catch (error) {
-      this.log.error(`Error on publish operation for channel ${channel}:`, error);
-      throw error;
-    }
-  }
-
   async onModuleDestroy(): Promise<void> {
     try {
       if (this.client) {

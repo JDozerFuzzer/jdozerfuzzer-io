@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RedisService } from '../storage/redis.service';
 import { UUID } from 'crypto';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
 
 
 @Injectable()
@@ -9,7 +10,7 @@ export class RedisPubSub {
   private readonly log = new Logger(RedisPubSub.name);
 
   constructor(
-    private readonly redisService: RedisService,
+    @InjectRedis() private readonly client: Redis,
   ) { }
 
   async publish(channel: string, entityId: UUID, eventType: string, entityType: string, payload: any): Promise<void> {
@@ -23,7 +24,13 @@ export class RedisPubSub {
         },
         payload
       };
-      await this.redisService.publish(channel, event);
+      await this.client.publish(channel, JSON.stringify(event), (err, sent) => {
+        if (err) {
+          this.log.error(`Error publishing event to channel ${channel}`, err);
+          throw err;
+        }
+        this.log.verbose(`Message posted in the channel ${channel} ${sent}`);
+      });
     } catch (error) {
       this.log.error(`Error publishing event to channel ${channel}`, error);
       this.log.debug(payload);

@@ -40,7 +40,6 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
         `fuzzer-engine:started`,
         `fuzzer-engine:attack-completed`,
         `fuzzer-engine:stopped`,
-        `fuzzer-engine:after-response`,
         `schema-response:status-code`,
         `schema-response:payload`,
         `vector-insertion:success`,

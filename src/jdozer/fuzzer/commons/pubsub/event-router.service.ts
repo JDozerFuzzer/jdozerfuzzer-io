@@ -1,20 +1,20 @@
-// src/common/services/event-router.service.ts
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import Redis from 'ioredis';
+import { Injectable, OnModuleDestroy, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { EventConsumerRegistry } from './event-consumer-registry.service';
 import { EventConsumer } from './event-consumer.interface';
 
 @Injectable()
 export class EventRouterService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(EventRouterService.name);
-  private redisClient: Redis;
-
   private consumerMap = new Map<string, EventConsumer>();
+  private client: Redis.Redis;
 
-  constructor(private readonly registry: EventConsumerRegistry) {
-    this.redisClient = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '', 10) || 6379
+  constructor(
+    private readonly registry: EventConsumerRegistry
+  ) {
+    this.client = new Redis.Redis({
+      host: process.env.FUZZER_REDIS_HOST || "localhost",
+      port: (process.env.FUZZER_REDIS_PORT ? +process.env.FUZZER_REDIS_PORT : 6379)
     });
   }
 
@@ -44,13 +44,12 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
     }
 
     for (const channel of uniqueChannels) {
-      await this.redisClient.subscribe(channel);
+      await this.client.psubscribe(channel);
       this.logger.log(`Subscribed to Redis channel: ${channel}`);
     }
-    this.redisClient.on('message', (channel, message) => {
+    this.client.on('pmessage', (pattern, channel, message) => {
       this.handleMessage(channel, message);
     });
-
     this.logger.debug(`EventRouterService initialization complete. Consumers registered: ${consumers.length}`);
   }
 
@@ -77,7 +76,7 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
   }
 
   async onModuleDestroy() {
-    await this.redisClient.quit();
+    await this.client.quit();
   }
 
   private filterChannels(consumerMap: Map<string, EventConsumer>, target: string): Map<string, EventConsumer | undefined> {

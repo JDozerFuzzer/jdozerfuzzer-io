@@ -55,23 +55,23 @@ export class SchemaStatusCode implements OnModuleInit {
     public async validate(fuzzerId: UUID, operationId: string, caseId: UUID) {
         try {
 
-            let res = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, caseId));
-            let op = await this.redisService.get(this.keyManager.forOperation(operationId, fuzzerId));
-            let validation = this.findMatch(res.statusCode, op, res.uuidReq);
+            const res = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, caseId));
+            const op = await this.redisService.get(this.keyManager.forOperation(operationId, fuzzerId));
+            const validation = this.findMatch(res.statusCode, op, res.uuidReq);
             validation.id = res.uuidReq;
             validation.fuzzerId = fuzzerId;
             validation.operationId = operationId;
 
             await this.redisService.set(this.keyManager.schemaStatusCodeKey(fuzzerId, res.operationId, res.uuidReq), validation);
-            await this.redisPubSub.publish("jdozer:fuzzer:listeners", fuzzerId, "status-code", "schema-response", {
+            await this.redisPubSub.publish("jdozer:fuzzer:status-code", fuzzerId, "status-code", "schema-response", {
                 id: validation.id,
                 fuzzerId: validation.fuzzerId,
                 operationId: validation.operationId,
                 statusCode: validation.statusCode,
                 matched: validation.matched,
-                matchType: validation.matchType,
-                severity: validation.severity,
-                severityName: validation.severityName
+                matchType: validation.finding.matchType,
+                severity: validation.finding.severity,
+                severityName: validation.finding.severityName
             });
 
         } catch (e) {

@@ -67,7 +67,7 @@ export class ResponseSummary implements OnModuleInit {
     private readonly collections: any = {
         "REQ": this.REQ,
         "RES": this.RES,
-        "schemaRequestPayload": this.schemaRequestPayload,
+        "SCHEMA_PROBE_REQUEST_PAYLOAD": this.schemaRequestPayload,
         "schemaResponsePayload": this.schemaResponsePayload,
         "schemaResponseStatusCode": this.schemaResponseStatusCode,
         "fuzzingCase": this.fuzzingCase,
@@ -81,27 +81,30 @@ export class ResponseSummary implements OnModuleInit {
 
             return this.redisAdapter.gets(keys).then((data: any[]) => {
                 const mapped: Record<string, any> = this.keysMapper(keys, data);
-                const record: any = {};
+                const summary: Record<string, any> = {};
                 for (let k of Object.keys(this.collections)) {
-                    const data: any = mapped[baseKey.concat(`:${k}`)];
-                    if (!data) {
-                        this.logger.warn(`[ResponseSummary.compose] No data found for key: ${baseKey.concat(`:${k}`)}`);
+                    const record: any = mapped[baseKey.concat(`:${k}`)];
+                    if (!record || Object.keys(record).length == 0) {
+                        this.logger.warn(`[compose] No data found for key: ${k}`, baseKey.concat(`:${k}`));
                         continue;
                     }
-                    record[k] = this.collections[k](data);
-                    record[`id`] = baseKey.split(":")[4];
-                    record[`fuzzerId`] = baseKey.split(":")[1];
+                    try {
+                        summary[k] = this.collections[k](record);
+                    } catch (e) {
+                        this.logger.error(`[compose] An error occurred while attempting to execute the mapping function for key ${k}: ${e.message}`, `key: ${baseKey.concat(`:${k}`)}`);
+                    }
                 }
-
-                return this.redisAdapter.save(baseKey.concat(`:SUMMARY`), record);
+                summary[`id`] = baseKey.split(":")[4];
+                summary[`fuzzerId`] = baseKey.split(":")[1];
+                return this.redisAdapter.save(baseKey.concat(`:SUMMARY`), summary);
 
             }).catch(e => {
-                this.logger.error(`[ResponseSummary.compose] An error has occurred: ${e.message}`, e);
+                this.logger.error(`[compose] An error has occurred: ${e.message}`, e);
                 throw e;
             });
 
         } catch (e) {
-            this.logger.error(`[ResponseSummary.compose] An error has occurred: ${e.message}`, e);
+            this.logger.error(`[compose] An error has occurred: ${e.message}`, e);
             throw e;
         }
     }

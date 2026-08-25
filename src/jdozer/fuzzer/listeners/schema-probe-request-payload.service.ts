@@ -17,7 +17,7 @@ export class SchemaProbeRequestPayloadSub implements EventConsumer, OnModuleInit
 
     channels = ["jdozer:fuzzer:engine"];
     entityType = "fuzzer-engine";
-    eventType = "after-response";
+    eventType = "before-request";
 
     constructor(
         private readonly registry: EventConsumerRegistry
@@ -48,62 +48,66 @@ export class SchemaProbeRequestPayload implements OnModuleInit {
     onModuleInit() {
         this.sub.handleEvent = async (event: any, channel: string) => {
             if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
-                await this.validate(event.payload.fuzzerId, event.payload.caseId);
+                await this.validate(event.payload.fuzzerId, event.payload.operationId, event.payload.uuidReq);
             }
         }
     }
 
-    public async validate(fuzzerId: UUID, responseId: UUID) {
+    public async validate(fuzzerId: UUID, operationId: string, caseId: UUID) {
         try {
 
-            let keys = await this.redisService.getKeys(this.keyManager.requestIdPattern(fuzzerId, responseId));
-            if (keys.length === 1) {
-
-                let req = await this.redisService.get(keys[0]);
-                if (!req.params.payloadId) {
-                    this.logger.verbose(`[validate] Not payload found for request ${responseId} | ${fuzzerId}`);
-                    return;
-                }
-                let op = await this.redisService.get(this.keyManager.responseToOperation(keys[0]));
-                const schemaUtils = new SchemaUtils(op.req.payload);
-                let dataPayload: { valid: boolean, errors?: any[] } = schemaUtils.validate(JSON.parse(Buffer.from(req.payload, "base64").toString("utf-8")));
-                const validation: any = {
-                    id: req.uuidReq,
-                    fuzzerId: fuzzerId,
-                    operationId: op.name,
-                    isValid: dataPayload.valid,
-                    errors: dataPayload
-                };
-
-                await this.redisService.set(this.keyManager.schemaProbeRequestPayloadKey(fuzzerId, op.name, responseId), validation);
-                await this.redisPubSub.publish(`jdozer:fuzzer:listeners`, fuzzerId, `request`, `schema-probe`, validation);
-
-                /**
-                                let res: any = await this.redisService.get(keys[0].replaceAll(':REQ', ':RES'));
-                                if (dataPayload) {
-                                    const finding: SchemaValidationFinding = this.getSchemaValidationFinding(dataPayload.valid, res.statusCode);
-                                    finding.details = dataPayload;
-                                    await this.redisService.set(keys[0].replaceAll(':REQ', ':schemaRequestPayload'), {
-                                        id: responseId,
-                                        fuzzerId: fuzzerId,
-                                        operationId: op.name,
-                                        finding: finding
-                                    });
-                                    await this.redisPubSub.publish('jdozer:fuzzer:listeners', fuzzerId, `payload`, `schema-request`, {
-                                        id: keys[0],
-                                        fuzzerId: fuzzerId,
-                                        operationId: op.name,
-                                        isValid: finding.isValid,
-                                        statusCategory: finding.statusCategory,
-                                        severity: finding.severity,
-                                        type: finding.findingType
-                                    });
-                
-                                } else {
-                                    this.logger.warn(`[validate] Response not found for key pattern ${this.keyManager.responseIdPattern(fuzzerId, responseId)}`);
-                                }
-                */
+            const key: string = this.keyManager.forRequest(fuzzerId, operationId, caseId);
+            const req = await this.redisService.get(key);
+            if (!req) {
+                this.logger.warn(`[validate] The request for the key was not found: ${operationId} | ${caseId}`, `fullKey: ${key}`);
+                return;
             }
+            const op = await this.redisService.get(this.keyManager.forOperation(operationId, fuzzerId));
+            const schemaUtils = new SchemaUtils(op.req.payload);
+            let dataPayload: { valid: boolean, errors?: any[] } = schemaUtils.validate(JSON.parse(Buffer.from(req.payload, "base64").toString("utf-8")));
+            const validation: any = {
+                id: req.uuidReq,
+                fuzzerId: fuzzerId,
+                operationId: op.name,
+                isValid: dataPayload.valid,
+                errors: dataPayload
+            };
+
+            await Promise.all([
+                this.redisService.set(this.keyManager.schemaProbeRequestPayloadKey(fuzzerId, op.name, caseId), validation),
+                this.redisPubSub.publish(`jdozer:fuzzer:before-request`, fuzzerId, `payload`, `schema-probe`, {
+                    id: req.uuidReq,
+                    operationId: op.name,
+                    fuzzerId: fuzzerId,
+                    isValid: dataPayload.valid
+                })
+            ]);
+
+            /**
+                            let res: any = await this.redisService.get(keys[0].replaceAll(':REQ', ':RES'));
+                            if (dataPayload) {
+                                const finding: SchemaValidationFinding = this.getSchemaValidationFinding(dataPayload.valid, res.statusCode);
+                                finding.details = dataPayload;
+                                await this.redisService.set(keys[0].replaceAll(':REQ', ':schemaRequestPayload'), {
+                                    id: responseId,
+                                    fuzzerId: fuzzerId,
+                                    operationId: op.name,
+                                    finding: finding
+                                });
+                                await this.redisPubSub.publish('jdozer:fuzzer:listeners', fuzzerId, `payload`, `schema-request`, {
+                                    id: keys[0],
+                                    fuzzerId: fuzzerId,
+                                    operationId: op.name,
+                                    isValid: finding.isValid,
+                                    statusCategory: finding.statusCategory,
+                                    severity: finding.severity,
+                                    type: finding.findingType
+                                });
+            
+                            } else {
+                                this.logger.warn(`[validate] Response not found for key pattern ${this.keyManager.responseIdPattern(fuzzerId, responseId)}`);
+                            }
+            */
 
         } catch (e) {
             this.logger.error(`[validate] An error has occurred: ${e.message}`, e);

@@ -30,8 +30,8 @@ export const ResponseMatchDescriptions: Record<string, Omit<SchemaResponseStatus
 
     default: {
         matchType: 'default',
-        severity: 2,
-        severityName: 'info',
+        severity: 3,
+        severityName: 'low',
         description: 'The received HTTP status code does not match any defined response, but the OpenAPI contract provides a "default" response that applies to this status code.',
         tags: ['warning', 'default-match', 'fallback', 'needs-clarification'],
         recommendation: 'Review if the "default" response is appropriate for this specific status code. Consider adding explicit definitions for common status codes.'
@@ -40,7 +40,7 @@ export const ResponseMatchDescriptions: Record<string, Omit<SchemaResponseStatus
     '5xx': {
         matchType: '5xx',
         severity: 4,
-        severityName: 'low',
+        severityName: 'medium',
         description: 'The received HTTP status code is a 5xx server error, but the OpenAPI contract does not define any explicit 5xx responses or a wildcard for this category.',
         tags: ['error', 'server-error', 'unexpected', 'security-risk', 'high-severity'],
         recommendation: 'Add explicit 5xx error responses to the OpenAPI contract. Server errors should always be documented to inform clients about failure scenarios.'
@@ -48,8 +48,8 @@ export const ResponseMatchDescriptions: Record<string, Omit<SchemaResponseStatus
 
     none: {
         matchType: 'none',
-        severity: 3,
-        severityName: 'medium',
+        severity: 5,
+        severityName: 'high',
         description: 'The received HTTP status code is not defined in the OpenAPI contract. No exact match, wildcard, or default response exists for this status code.',
         tags: ['error', 'unexpected', 'undocumented', 'needs-fix', 'contract-drift'],
         recommendation: 'Update the OpenAPI contract to include this HTTP status code. Clients relying on the contract will not anticipate this response.'

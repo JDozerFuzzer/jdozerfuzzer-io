@@ -42,9 +42,8 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
         `fuzzer-engine:stopped`,
         `schema-response:status-code`,
         `schema-response:payload`,
-        `vector-insertion:success`,
         `fuzzing-case:validation`,
-        `schema-request:payload`
+        `schema-probe:payload`
     ];
 
     private filter(entityType: string, eventType: string) {

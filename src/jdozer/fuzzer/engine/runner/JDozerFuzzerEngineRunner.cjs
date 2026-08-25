@@ -298,17 +298,19 @@ class jDozerFuzzerEngineRunner {
             } else { params.path = {} }
 
             const reqKey = 'JDF:'.concat(context.vars.testId).concat(':ENG:').concat(request.operationId).concat(':').concat(request.uuidReq).concat(':REQ');
-            await this.#redis.set(reqKey, JSON.stringify(request));
-            /**
-            await this.runtimeEvents({
-                fuzzerId: context.vars.testId,
-                operationId: request.operationId,
-                uuidReq: request.uuidReq,
-                reqKey: reqKey
-            }, 'request-created');
-            */
+            await Promise.all([
+                this.#redis.set(reqKey, JSON.stringify(request))
+                    .catch(e => this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e)),
+                this.runtimeEvent({
+                    fuzzerId: context.vars.testId,
+                    operationId: request.operationId,
+                    uuidReq: request.uuidReq,
+                    fullKey: reqKey
+                }, 'before-request')
+            ]).catch(e => this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e));
+
         } catch (e) {
-            this.#log.error("Error en beforeRequest:", e);
+            this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e);
         }
     }
 
@@ -427,9 +429,7 @@ class jDozerFuzzerEngineRunner {
         }
 
         try {
-            //message.data = btoa(JSON.stringify(message.payload));
             await this.#redis.publish(channel, JSON.stringify(message));
-            // //this.#log.verbose(`[publishEvent] Published event: ${channel}:`, message);
         } catch (error) {
             this.#log.error('[publishEvent] Event exception:', error);
         }
@@ -441,9 +441,8 @@ class jDozerFuzzerEngineRunner {
     async runtimeEvent(payload, eventType) {
         return this.publishEvent(this.CHANNEL_FUZZER_ENGINE, {
             headers: {
-                id: randomUUID(),
                 timestamp: Date.now(),
-                version: '1.0.0',
+                version: '1.0',
                 entityId: payload.fuzzerId,
                 entityType: this.ENTITY_TYPE_FUZZER_ENGINE,
                 eventType: eventType

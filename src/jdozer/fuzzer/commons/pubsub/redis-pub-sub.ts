@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { UUID } from 'crypto';
+import { randomUUID, UUID } from 'crypto';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 
@@ -17,10 +17,11 @@ export class RedisPubSub {
     try {
       const event = {
         headers: {
+          eventId: randomUUID(),
+          timestamp: new Date().toISOString(),
           entityId,
           eventType,
-          entityType,
-          timestamp: new Date().toISOString()
+          entityType
         },
         payload
       };

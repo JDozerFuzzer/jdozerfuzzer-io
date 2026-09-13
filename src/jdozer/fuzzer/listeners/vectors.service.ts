@@ -8,9 +8,9 @@ import { UUID } from "crypto";
 
 
 @Injectable()
-export class SchemasProbeSummarySub implements EventConsumer, OnModuleInit {
+export class VectorsSub implements EventConsumer, OnModuleInit {
 
-    private readonly logger = new Logger(SchemasProbeSummarySub.name);
+    private readonly logger = new Logger(VectorsSub.name);
 
     readonly channels = ["jdozer:fuzzer:engine"];
     readonly entityType = "fuzzer-engine";
@@ -31,15 +31,15 @@ export class SchemasProbeSummarySub implements EventConsumer, OnModuleInit {
 }
 
 @Injectable()
-export class SchemasProbeSummary implements OnModuleInit {
+export class Vectors implements OnModuleInit {
 
-    private readonly logger = new Logger(SchemasProbeSummary.name);
+    private readonly logger = new Logger(Vectors.name);
     private readonly keyManager = new KeyManager();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: SchemasProbeSummarySub
+        private readonly sub: VectorsSub
     ) { }
 
     onModuleInit() {
@@ -79,8 +79,8 @@ export class SchemasProbeSummary implements OnModuleInit {
                 probes: onlySchemas
             };
 
-            await this.redisService.set(this.keyManager.schemaProbeSummaryKey(fuzzerId, request.operationId, request.uuidReq), probes);
-            await this.redisPubSub.publish(`jdozer:fuzzer:listeners`, fuzzerId, `summary`, `schema-probe`, probes);
+            await this.redisService.set(this.keyManager.vectorKey(fuzzerId, request.operationId, request.uuidReq), probes);
+            await this.redisPubSub.publish(`jdozer:fuzzer:test-case`, fuzzerId, `summary`, `vectors`, probes);
 
             return;
 

@@ -7,12 +7,12 @@ import { UUID } from "crypto";
 import { RedisService } from "../commons/storage/redis.service";
 import { KeyManager } from "../commons/storage/key-manager";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
-import { ResponseMatchDescriptions, SchemaResponseStatusCodeResult } from "./schema-status-code.types";
+import { ContractDriftStatusCodeFindings, ContractDriftStatusCodeFinding } from "./contract-drift-status-code.types";
 
 @Injectable()
-export class SchemaStatusCodeSub implements EventConsumer, OnModuleInit {
+export class ContractDriftStatusCodeSub implements EventConsumer, OnModuleInit {
 
-    private readonly logger = new Logger(SchemaStatusCodeSub.name);
+    private readonly logger = new Logger(ContractDriftStatusCodeSub.name);
 
     readonly channels = ["jdozer:fuzzer:engine"];
     readonly entityType = "fuzzer-engine";
@@ -24,7 +24,7 @@ export class SchemaStatusCodeSub implements EventConsumer, OnModuleInit {
 
     onModuleInit() {
         this.registry.register(this);
-        this.logger.log(`${SchemaStatusCodeSub.name} registered`);
+        this.logger.log(`${ContractDriftStatusCodeSub.name} registered`);
     }
 
     async handleEvent(event: any, channel: string): Promise<void> {
@@ -33,15 +33,15 @@ export class SchemaStatusCodeSub implements EventConsumer, OnModuleInit {
 }
 
 @Injectable()
-export class SchemaStatusCode implements OnModuleInit {
+export class ContractDriftStatusCode implements OnModuleInit {
 
-    private readonly logger = new Logger(SchemaStatusCode.name);
+    private readonly logger = new Logger(ContractDriftStatusCode.name);
     private readonly keyManager = new KeyManager();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: SchemaStatusCodeSub
+        private readonly sub: ContractDriftStatusCodeSub
     ) { }
 
     onModuleInit() {
@@ -63,7 +63,7 @@ export class SchemaStatusCode implements OnModuleInit {
             validation.operationId = operationId;
 
             await this.redisService.set(this.keyManager.schemaStatusCodeKey(fuzzerId, res.operationId, res.uuidReq), validation);
-            await this.redisPubSub.publish("jdozer:fuzzer:status-code", fuzzerId, "status-code", "schema-response", {
+            await this.redisPubSub.publish("jdozer:fuzzer:contract-drift", fuzzerId, "status-code", "contract-drift", {
                 id: validation.id,
                 fuzzerId: validation.fuzzerId,
                 operationId: validation.operationId,
@@ -109,7 +109,7 @@ export class SchemaStatusCode implements OnModuleInit {
     }
 
     private buildLevel(type: `exact` | `wildcard` | `default` | `5xx` | `none`, statusCode: number, matched?: string): any {
-        const r: SchemaResponseStatusCodeResult = ResponseMatchDescriptions[type];
+        const r: ContractDriftStatusCodeFinding = ContractDriftStatusCodeFindings[type];
         return {
             statusCode: statusCode,
             matched: matched,

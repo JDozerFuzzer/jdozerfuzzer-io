@@ -4,37 +4,40 @@ import { UUID } from 'crypto';
 export class KeyManager {
 
   private readonly log = new Logger(KeyManager.name);
-  private readonly JDF = "JDF";
-  private readonly ENGINE = "ENG";
-  private readonly OPERATION = "OP";
-  private readonly REQUEST = "REQ";
-  private readonly RESPONSE = "RES";
-  private readonly SCHEMA_PROBE_SUMMARY = "SCHEMA_PROBE_SUMMARY";
-  private readonly SCHEMA_PROBE_REQUEST_PAYLOAD = "SCHEMA_PROBE_REQUEST_PAYLOAD";
-  private readonly SCHEMA_PROBE_RESPONSE_PAYLOAD = "SCHEMA_PROBE_RESPONSE_PAYLOAD";
-  private readonly STATUS_CODE_SCHEMA = "STATUS_CODE_SCHEMA";
+  public static readonly JDF = "JDF";
+  public static readonly ENGINE = "ENG";
+  public static readonly OPERATION = "OP";
+  public static readonly REQUEST = "REQ";
+  public static readonly RESPONSE = "RES";
+  public static readonly TEST_CASE_SUMMARY = "TEST_CASE_SUMMARY";
+  public static readonly CONTRACT_DRIFT_REQUEST_PAYLOAD = "CONTRACT_DRIFT_REQUEST_PAYLOAD";
+  public static readonly CONTRACT_DRIFT_RESPONSE_PAYLOAD = "CONTRACT_DRIFT_RESPONSE_PAYLOAD";
+  public static readonly CONTRACT_DRIFT_STATUS_CODE = "CONTRACT_DRIFT_STATUS_CODE";
+  public static readonly VECTORS = "VECTORS";
+  public static readonly GRAMMAR_VECTOR = "GRAMMAR_VECTOR";
+  public static readonly ATTACK_SURFACE = "ATTACK_SURFACE";
 
   public forFuzz(id: UUID): string {
-    return `${this.JDF}:${id}`;
+    return `${KeyManager.JDF}:${id}`;
   }
 
   public forOperation(id: string, fuzzerId: UUID): string {
-    return `${this.JDF}:${fuzzerId}:OP:${id}`;
+    return `${KeyManager.JDF}:${fuzzerId}:OP:${id}`;
   }
 
   public forFake(fuzzerId: string, operation: string, context: string, fid: string): string {
-    return `${this.JDF}:${fuzzerId}:DMM:${operation}:${context}:${fid}`;
+    return `${KeyManager.JDF}:${fuzzerId}:DMM:${operation}:${context}:${fid}`;
   }
 
   public forEngine(fuzzerId: string): string {
-    return `${this.JDF}:${fuzzerId}:ENG`;
+    return `${KeyManager.JDF}:${fuzzerId}:ENG`;
   }
   public forApi(fuzzerId: string): string {
-    return `${this.JDF}:${fuzzerId}:API`;
+    return `${KeyManager.JDF}:${fuzzerId}:API`;
   }
 
   public vecPrefix(): string {
-    return `${this.JDF}:VEC`;
+    return `${KeyManager.JDF}:VEC`;
   }
 
   public forVector(vectorId: number): string {
@@ -86,7 +89,7 @@ export class KeyManager {
   }
 
   public statusCodePattern(fuzzerId: UUID, responseId: UUID) {
-    return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:schemaResponseStatusCode`);
+    return this.forEngine(fuzzerId).concat(`:*:`).concat(responseId).concat(`:${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`);
   }
 
   public dmmPattern(fuzzerId: UUID, dmmId: UUID) {
@@ -113,8 +116,8 @@ export class KeyManager {
     return this.forFuzz(fuzzerId).concat(`:DMM:*:*:`).concat(id);
   }
 
-  public forResponseVector(fuzzerId: UUID, operationId: string, responseId: UUID): string {
-    return this.forEngine(fuzzerId).concat(`:${operationId}:`).concat(responseId).concat(`:VEC`);
+  public forGrammarVector(fuzzerId: UUID, operationId: string, caseId: UUID): string {
+    return this.caseBaseKey(fuzzerId, operationId, caseId).concat(`:${KeyManager.GRAMMAR_VECTOR}`);
   }
 
   public responsesPattern(fuzzerId: UUID) {
@@ -145,33 +148,41 @@ export class KeyManager {
     return this.forEngine(fuzzerId).concat(`:${operation}`).concat(`:${id}`);
   }
 
-  public schemaProbeSummaryKey(fuzzerId: UUID, operationId: string, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${this.SCHEMA_PROBE_SUMMARY}`);
+  public testCaseSummaryKey(fuzzerId: UUID, operationId: string, id: UUID): string {
+    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${KeyManager.TEST_CASE_SUMMARY}`);
   }
 
   public schemaProbeRequestPayloadKey(fuzzerId: UUID, operationId: string, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${this.SCHEMA_PROBE_REQUEST_PAYLOAD}`);
+    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${KeyManager.CONTRACT_DRIFT_REQUEST_PAYLOAD}`);
   }
 
   public schemaProbeResponsePayloadKey(fuzzerId: UUID, operationId: string, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${this.SCHEMA_PROBE_RESPONSE_PAYLOAD}`);
+    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${KeyManager.CONTRACT_DRIFT_RESPONSE_PAYLOAD}`);
   }
 
   public responseKey(fuzzerId: UUID, operationId: string, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${this.RESPONSE}`);
+    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${KeyManager.RESPONSE}`);
   }
 
   public schemaStatusCodeKey(fuzzerId: UUID, operationId: string, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${this.STATUS_CODE_SCHEMA}`);
+    return this.caseBaseKey(fuzzerId, operationId, id).concat(`:${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`);
   }
 
   public statusCodeSchemaPattern(fuzzerId: UUID, id: UUID): string {
-    return this.caseBaseKey(fuzzerId, "*", id).concat(`:${this.STATUS_CODE_SCHEMA}`);
+    return this.caseBaseKey(fuzzerId, "*", id).concat(`:${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`);
+  }
+
+  public vectorKey(fuzzerId: UUID, operationId: string, requestId: UUID): string {
+    return this.caseBaseKey(fuzzerId, operationId, requestId).concat(`:${KeyManager.VECTORS}`);
+  }
+
+  public vectorAttackSurfaceKey(fuzzerId: UUID): string {
+    return this.forFuzz(fuzzerId).concat(`:${KeyManager.ATTACK_SURFACE}`);
   }
 
   public toResponseKey(key: string): string {
     const parts = key.split(`:`);
-    parts[parts.length - 1] = this.RESPONSE;
+    parts[parts.length - 1] = KeyManager.RESPONSE;
     return parts.join(`:`);
   }
 

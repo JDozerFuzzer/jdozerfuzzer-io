@@ -1,6 +1,6 @@
 
 
-export interface SchemaResponseStatusCodeResult {
+export interface ContractDriftStatusCodeFinding {
     matchType: 'exact' | 'wildcard' | 'default' | '5xx' | 'none';
     description: string;
     severity: 1 | 2 | 3 | 4 | 5;
@@ -9,7 +9,7 @@ export interface SchemaResponseStatusCodeResult {
     recommendation: string;
 }
 
-export const ResponseMatchDescriptions: Record<string, Omit<SchemaResponseStatusCodeResult, 'responseId' | 'receivedStatusCode' | 'expectedStatusCode'>> = {
+export const ContractDriftStatusCodeFindings: Record<string, Omit<ContractDriftStatusCodeFinding, 'responseId' | 'receivedStatusCode' | 'expectedStatusCode'>> = {
     exact: {
         matchType: 'exact',
         severity: 1,

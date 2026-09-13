@@ -5,11 +5,11 @@ export interface Validation {
     fuzzerId: UUID,
     operationId: string,
     isValid: boolean;
-    finding: SchemaResponseValidationFinding;
+    finding: ContractDriftResponsePayloadFinding;
     errors: any;
 }
 
-export interface SchemaResponseValidationFinding {
+export interface ContractDriftResponsePayloadFinding {
     type: string;
     description: string;
     severityLevel: number;
@@ -18,7 +18,7 @@ export interface SchemaResponseValidationFinding {
     recommendation: string[];
 }
 
-export const SchemaResponseValidationFindings: Record<string, Omit<SchemaResponseValidationFinding, 'schema-payload'>> = {
+export const ContractDriftResponsePayloadFindings: Record<string, Omit<ContractDriftResponsePayloadFinding, 'schema-payload'>> = {
     '1-0': {
         type: 'MISSING_RESPONSE_BODY',
         description: 'The API response does not contain a body even though the contract defines a schema. This indicates incomplete implementation or unexpected behavior.',

@@ -46,7 +46,7 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
         `schema-probe:payload`
     ];
 
-    private filter(entityType: string, eventType: string) {
+    private filter(entityType: string, eventType: string): boolean {
         try {
             const key: string = `${entityType}:${eventType}`;
             for (const eventKey of this.eventKeys) {

@@ -74,7 +74,7 @@ export class RedisAdapter {
         }
     }
 
-    public async gets(keys: string[]): Promise<any[]> {
+    public async mget(keys: string[]): Promise<any[]> {
         try {
             return await this.redisService.mget(keys);
         } catch (e) {
@@ -83,11 +83,11 @@ export class RedisAdapter {
         }
     }
 
-    public async save(key: string, data: any): Promise<void> {
+    public async set(key: string, data: any): Promise<void> {
         try {
             return await this.redisService.set(key, data);
         } catch (e) {
-            this.logger.error(`[save] An error has occurred: ${e.message}`, e);
+            this.logger.error(`[set] An error has occurred: ${e.message}`, e);
             throw e;
         }
     }

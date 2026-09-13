@@ -30,31 +30,10 @@ export class JDozerFuzzerEngineIgnition {
 
     async start(fuzzerId: UUID, timeLength: number = 1): Promise<void> {
         try {
-            this.fuzzer = await this.redisService.get(this.keyManger.forFuzz(fuzzerId as UUID));
-            if (!this.fuzzer) {
-                throw new EngineException({ message: this._MSG_NOTFOUND, details: `fuzzerId: ${fuzzerId}` });
-            }
 
-            const operations: any[] = await this.getOperations(fuzzerId);
-            const cases: string[] = await this.getCasesKeys(fuzzerId);
-
-            let engCfg = await this.redisService.get(this.keyManger.forEngine(fuzzerId as string));
-
-            engCfg.scenarios = await this.engineScenarios.build(operations, cases);
-            engCfg.config.phases = this.enginePhases.build(engCfg.scenarios, cases.length, operations.length, timeLength);
-
-            engCfg.config.ensure = ['onError'];
-            engCfg.config.processor = this.targetRunner();
-            engCfg.config.plugins = this.targetPlugins(this.fuzzer);
-            engCfg.before = { flow: [{ function: 'before' }] };
-
-            this.redisService.set(this.keyManger.forEngine(fuzzerId as string), engCfg);
-
+            const engCfg = await this.redisService.get(this.keyManger.forEngine(fuzzerId.toString()));
             const engCfgYml = YAML.stringify(engCfg);
-            await this.engineConfigEvent(engCfg, cases.length, fuzzerId);
-            this.exec(engCfgYml, fuzzerId as string);
-
-            this.log.log('Fuzzer Engine started!');
+            await this.exec(engCfgYml, fuzzerId.toString());
 
         } catch (e) {
             throw new EngineException({

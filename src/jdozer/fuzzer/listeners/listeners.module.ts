@@ -1,31 +1,31 @@
 import { Module } from '@nestjs/common';
-import { SchemaStatusCodeSub, SchemaStatusCode } from './schema-status-code.service';
-import { SchemaResponsePayload, SchemaResponsePayloadSub } from './schema-response-payload.service';
-import { VectorInsertion, VectorInsertionSub } from './vector-insertion.service';
+import { ContractDriftStatusCodeSub, ContractDriftStatusCode } from './contract-drift-status-code.service';
+import { ContractDriftResponsePayload, ContractDriftResponsePayloadSub } from './contract-drift-response-payload.service';
+import { VectorGrammarBasedInjection, VectorGrammarBasedInjectionSub } from './vectors-grammar-based-injection.service';
 import { VectorAnalyze, VectorAnalyzeSub } from './vectors/vector-analyze.service';
-import { TotalCases, TotalCasesSub } from './total-cases.service';
-import { SchemasProbeSummarySub, SchemasProbeSummary } from './schemas-probe-summary.service';
-import { SchemaProbeRequestPayload, SchemaProbeRequestPayloadSub } from './schema-probe-request-payload.service';
-import { ResponseSummary, ResponseSummarySubscriber } from './response-summary.service';
+import { Configurations, ConfugurationsSub } from './configurations.service';
+import { VectorsSub, Vectors } from './vectors.service';
+import { ContractDriftRequestPayload, ContractDriftRequestPayloadSub } from './contract-drift-request-payload.service';
+import { TestCaseSummary, TestCaseSummarySub } from './test-case-summary.service';
 
 @Module({
     providers: [
-        SchemaStatusCodeSub,
-        SchemaStatusCode,
-        SchemaResponsePayloadSub,
-        SchemaResponsePayload,
-        VectorInsertionSub,
-        VectorInsertion,
+        ContractDriftStatusCodeSub,
+        ContractDriftStatusCode,
+        ContractDriftResponsePayloadSub,
+        ContractDriftResponsePayload,
+        VectorGrammarBasedInjectionSub,
+        VectorGrammarBasedInjection,
         VectorAnalyzeSub,
         VectorAnalyze,
-        TotalCasesSub,
-        TotalCases,
-        SchemasProbeSummarySub,
-        SchemasProbeSummary,
-        SchemaProbeRequestPayloadSub,
-        SchemaProbeRequestPayload,
-        ResponseSummarySubscriber,
-        ResponseSummary
+        ConfugurationsSub,
+        Configurations,
+        VectorsSub,
+        Vectors,
+        ContractDriftRequestPayloadSub,
+        ContractDriftRequestPayload,
+        TestCaseSummarySub,
+        TestCaseSummary
     ],
     exports: [],
 })

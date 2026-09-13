@@ -9,9 +9,9 @@ import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 
 
 @Injectable()
-export class VectorInsertionSub implements EventConsumer, OnModuleInit {
+export class VectorGrammarBasedInjectionSub implements EventConsumer, OnModuleInit {
 
-    private readonly logger: Logger = new Logger(VectorInsertionSub.name);
+    private readonly logger: Logger = new Logger(VectorGrammarBasedInjectionSub.name);
 
     readonly channels = ["jdozer:fuzzer:engine"];
     readonly entityType = "fuzzer-engine";
@@ -33,70 +33,80 @@ export class VectorInsertionSub implements EventConsumer, OnModuleInit {
 }
 
 @Injectable()
-export class VectorInsertion implements OnModuleInit {
+export class VectorGrammarBasedInjection implements OnModuleInit {
 
-    private readonly logger: Logger = new Logger(VectorInsertion.name);
+    private readonly logger: Logger = new Logger(VectorGrammarBasedInjection.name);
     private readonly keyManager: KeyManager = new KeyManager();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: VectorInsertionSub
+        private readonly sub: VectorGrammarBasedInjectionSub
     ) { }
 
     onModuleInit() {
         this.sub.handleEvent = async (event: any, channel: string) => {
             if (event.headers.entityType === `fuzzer-engine` && event.headers.eventType === `after-response`) {
-                await this.validate(event.payload.fuzzerId, event.payload.caseId);
+                await this.validate(event.payload.fuzzerId, event.payload.operationId, event.payload.caseId);
             }
         }
     }
 
-    public async validate(fuzzerId: UUID, responseId: UUID) {
+    public async validate(fuzzerId: UUID, operationId: string, caseId: UUID) {
         try {
-            this.logger.verbose(`[validate] Vector insertion validation...`);
-            const keys: string[] = await this.redisService.getKeys(this.keyManager.requestIdPattern(fuzzerId, responseId));
-            if (keys.length === 1) {
-                const req = await this.redisService.get(keys[0]);
-                if (req.params.payloadId) {
-                    const dmmKeys: string[] = await this.redisService.getKeys(this.keyManager.dmmPattern(fuzzerId, req.params.payloadId));
-                    if (dmmKeys.length === 1) {
-                        const dmm = await this.redisService.get(dmmKeys[0]);
-                        if (dmm.vectorId) {
-                            const vector = await this.redisService.get(this.keyManager.forVector(dmm.vectorId));
-                            const respKeys: string[] = await this.redisService.getKeys(this.keyManager.responseIdPattern(fuzzerId, responseId));
-                            const resp = await this.redisService.get(respKeys[0]);
-                            if (resp.statusCode >= 200 && resp.statusCode < 300) {
-                                await this.redisService.set(this.keyManager.forResponseVector(fuzzerId, req.operationId, resp.uuidReq), {
-                                    id: resp.uuidReq,
-                                    statusCode: resp.statusCode,
-                                    vectorId: vector.id,
-                                    vectorApplied: vector,
-                                    insertion: true
-                                });
-                                await this.redisPubSub.publish("jdozer:fuzzer:listeners", fuzzerId, "success", "vector-insertion", resp.uuidReq);
-                            }
-                        } else {
-                            this.logger.verbose(`[validate] Vector not found for key pattern ${this.keyManager.dmmPattern(fuzzerId, req.params.payloadId)}`);
-                        }
+            const req = await this.redisService.get(this.keyManager.forRequest(fuzzerId, operationId, caseId));
+            if (req.params.payloadId) {
+                const dmm = await this.redisService.get(this.keyManager.forDmm(fuzzerId, operationId, 'payload', req.params.payloadId));
+                if (dmm.vectorId) {
+                    const [vector, resp] = await this.redisService.mget<any>([
+                        this.keyManager.forVector(dmm.vectorId),
+                        this.keyManager.responseKey(fuzzerId, operationId, caseId)
+                    ]);
+
+                    const finding: any = {};
+                    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+                        finding.finding = "False Negative";
+                        finding.insertion = true;
+                    } else if (resp.statusCode >= 400 && resp.statusCode < 500) {
+                        finding.finding = "True Positive";
+                        finding.insertion = false;
+                    } else if (resp.statusCode >= 500 && resp.statusCode < 600) {
+                        finding.finding = "Server Error";
+                        finding.insertion = false;
                     } else {
-                        this.logger.warn(`[validate] DMM not found for key pattern ${this.keyManager.dmmPattern(fuzzerId, req.params.payloadId)}`);
+                        finding.finding = "Unknown";
+                        finding.insertion = false;
                     }
+
+                    finding.reflection = this.analyzer(resp, vector);
+                    finding.id = resp.uuidReq;
+                    finding.statusCode = resp.statusCode;
+                    finding.vectorId = vector.id;
+                    finding.vectorApplied = vector;
+
+                    await Promise.all([
+                        this.redisService.set(this.keyManager.forGrammarVector(fuzzerId, req.operationId, resp.uuidReq), finding),
+                        this.redisPubSub.publish("jdozer:fuzzer:vector-grammar", fuzzerId, "injection", "vector-grammar", finding)
+                    ]);
+                } else {
+                    this.logger.verbose(`[validate] Vector not found for key pattern ${this.keyManager.dmmPattern(fuzzerId, req.params.payloadId)}`);
                 }
-            } else {
-                this.logger.warn(`[validate] Request not found for key pattern ${this.keyManager.requestIdPattern(fuzzerId, responseId)}`);
             }
-        } catch (e) { }
+        } catch (e) {
+            this.logger.error(`[validate] Error validating vector: ${e.message}`);
+            throw new Error(e.message);
+        }
     }
 
-    private analyzer(req: any, res: any, dmm: any, vector: any) {
+    private analyzer(res: any, vector: any): string {
         try {
             const resPayload: string = Buffer.from(res.payload, 'base64').toString('utf-8');
             const vectorRaw: string = Buffer.from(vector.script, 'base64').toString('utf-8');
-            const reflectionContext: string = this.analyzeReflectionContext(resPayload, vectorRaw);
-            this.logger.verbose(`[analyzer] Reflection context: ${reflectionContext}`);
-
-        } catch (e) { }
+            return this.analyzeReflectionContext(resPayload, vectorRaw);
+        } catch (e) {
+            this.logger.error(`[analyzer] Error analyzing vector: ${e.message}`);
+            return 'UNKNOWN';
+        }
     }
 
     private analyzeReflectionContext(responseBody: string, vector: string): string {

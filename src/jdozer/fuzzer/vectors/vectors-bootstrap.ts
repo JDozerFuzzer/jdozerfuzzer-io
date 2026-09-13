@@ -18,7 +18,7 @@ export class VectorsBootstrap implements OnModuleInit {
 
   async init(): Promise<void> {
     try {
-      // Try to find the file in the current directory or fallbacks
+
       let filePath = path.join(__dirname, VectorsBootstrap.INIT_DATA_PATH);
 
       if (!fs.existsSync(filePath)) {

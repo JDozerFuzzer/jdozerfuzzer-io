@@ -1,6 +1,6 @@
 // types/schema-validation.types.ts
 
-export interface SchemaValidationFinding {
+export interface ContractDriftRequestPayloadFinding {
     /** Indica si el payload cumple con el esquema */
     isValid: boolean;
     /** Categoría del código de respuesta HTTP */
@@ -20,7 +20,7 @@ export interface SchemaValidationFinding {
     findingType: 'valid-request-success' | 'valid-request-error' | 'invalid-request-accepted' | 'invalid-request-rejected' | 'valid-request-server-error' | 'invalid-request-server-error';
 }
 
-export const SchemaValidationFindings: Record<string, Omit<SchemaValidationFinding, 'statusCode'>> = {
+export const ContractDriftRequestPayloadFindings: Record<string, Omit<ContractDriftRequestPayloadFinding, 'statusCode'>> = {
     // ============ CASO 1: PAYLOAD VÁLIDO + 2xx ============
     'valid-2xx': {
         isValid: true,

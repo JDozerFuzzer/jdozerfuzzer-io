@@ -10,9 +10,9 @@ export class EngineScenarios {
         this.log.verbose('[EngineScenarios] Initializing Engine Scenarios...');
     }
 
-    public async build(operations: any[], cases: string[]): Promise<any[]> {
+    public build(operations: any[], cases: string[]): any[] {
         try {
-            const operationWeight = await this.operationWeight(operations, cases);
+            const operationWeight = this.operationWeight(operations, cases);
             const scenarios = [];
             for (const op of operations) {
                 scenarios.push({
@@ -38,7 +38,7 @@ export class EngineScenarios {
         }
     }
 
-    private async operationWeight(operations: any[], cases: string[]): Promise<any> {
+    private operationWeight(operations: any[], cases: string[]): any {
         try {
             let opWeight: any = {};
             for (const op of operations) {

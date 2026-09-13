@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { EngineSubscriber } from "./jdozer-fuzzer-engine-sub";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 import { JDozerFuzzerEngineIgnition } from "./jdozer-fuzzer-engine-ignition";
-import { JDozerFuzzerEngineCfg } from "./jdozer-fuzzer-engine-cfg";
+import { JDozerFuzzerEngineBaseCfg } from "./jdozer-fuzzer-engine-base-cfg";
 import { omap } from "node_modules/yaml/dist/schema/yaml-1.1/omap";
 import { UUID } from "crypto";
 
@@ -13,7 +13,7 @@ export class EngineService implements OnModuleInit {
     private readonly logger = new Logger(EngineService.name);
 
     constructor(
-        private readonly engineCfg: JDozerFuzzerEngineCfg,
+        private readonly engineCfg: JDozerFuzzerEngineBaseCfg,
         private readonly engineIgnition: JDozerFuzzerEngineIgnition,
         private readonly engineSubscriber: EngineSubscriber
     ) { }

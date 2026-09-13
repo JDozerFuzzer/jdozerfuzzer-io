@@ -4,9 +4,10 @@ import { EventConsumerRegistry } from "../commons/pubsub/event-consumer-registry
 import { RedisAdapter } from "../commons/storage/redis-adapter.service";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 import { UUID } from "crypto";
+import { KeyManager } from "../commons/storage/key-manager";
 
 @Injectable()
-export class ResponseSummarySubscriber implements EventConsumer, OnModuleInit {
+export class TestCaseSummarySub implements EventConsumer, OnModuleInit {
 
 
     constructor(
@@ -26,16 +27,18 @@ export class ResponseSummarySubscriber implements EventConsumer, OnModuleInit {
         this.logger.warn("Method not implemented.");
     }
 
-    private readonly logger: Logger = new Logger(ResponseSummarySubscriber.name);
+    private readonly logger: Logger = new Logger(TestCaseSummarySub.name);
 }
 
 @Injectable()
-export class ResponseSummary implements OnModuleInit {
+export class TestCaseSummary implements OnModuleInit {
+
+    private readonly keyManager: KeyManager = new KeyManager();
 
     constructor(
         private readonly redisAdapter: RedisAdapter,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: ResponseSummarySubscriber
+        private readonly sub: TestCaseSummarySub
     ) { }
 
     onModuleInit() {
@@ -64,14 +67,14 @@ export class ResponseSummary implements OnModuleInit {
         }
     }
 
-    private readonly collections: any = {
-        "REQ": this.REQ,
-        "RES": this.RES,
-        "SCHEMA_PROBE_REQUEST_PAYLOAD": this.schemaRequestPayload,
-        "schemaResponsePayload": this.schemaResponsePayload,
-        "schemaResponseStatusCode": this.schemaResponseStatusCode,
-        "fuzzingCase": this.fuzzingCase,
-        "VEC": this.VEC
+    private readonly collections: Record<string, (record: any) => any> = {
+        [`${KeyManager.REQUEST}`]: this.REQ,
+        [`${KeyManager.RESPONSE}`]: this.RES,
+        [`${KeyManager.CONTRACT_DRIFT_REQUEST_PAYLOAD}`]: this.schemaRequestPayload,
+        [`${KeyManager.CONTRACT_DRIFT_RESPONSE_PAYLOAD}`]: this.schemaResponsePayload,
+        [`${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`]: this.schemaResponseStatusCode,
+        [`${KeyManager.TEST_CASE_SUMMARY}`]: this.fuzzingCase,
+        [`${KeyManager.GRAMMAR_VECTOR}`]: this.VEC
     };
 
     private async compose(baseKey: string): Promise<any> {
@@ -79,7 +82,7 @@ export class ResponseSummary implements OnModuleInit {
 
             const keys: string[] = Object.keys(this.collections).map((k: string) => baseKey.concat(`:${k}`));
 
-            return this.redisAdapter.gets(keys).then((data: any[]) => {
+            return this.redisAdapter.mget(keys).then((data: any[]) => {
                 const mapped: Record<string, any> = this.keysMapper(keys, data);
                 const summary: Record<string, any> = {};
                 for (let k of Object.keys(this.collections)) {
@@ -96,7 +99,7 @@ export class ResponseSummary implements OnModuleInit {
                 }
                 summary[`id`] = baseKey.split(":")[4];
                 summary[`fuzzerId`] = baseKey.split(":")[1];
-                return this.redisAdapter.save(baseKey.concat(`:SUMMARY`), summary);
+                return this.redisAdapter.set(this.keyManager.testCaseSummaryKey(summary.fuzzerId, summary.operationId, summary.id), summary);
 
             }).catch(e => {
                 this.logger.error(`[compose] An error has occurred: ${e.message}`, e);
@@ -174,5 +177,5 @@ export class ResponseSummary implements OnModuleInit {
         };
     }
 
-    private readonly logger: Logger = new Logger(ResponseSummary.name);
+    private readonly logger: Logger = new Logger(TestCaseSummary.name);
 }

@@ -6,15 +6,15 @@ import { RedisService } from "../commons/storage/redis.service";
 import { UUID } from "crypto";
 import { SchemaUtils } from "../commons/schema-utils";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
-import { SchemaResponseValidationFindings, Validation } from "./schema-response-payload.types";
+import { ContractDriftResponsePayloadFindings, Validation } from "./contract-drift-response-payload.types";
 
 @Injectable()
-export class SchemaResponsePayloadSub implements EventConsumer, OnModuleInit {
+export class ContractDriftResponsePayloadSub implements EventConsumer, OnModuleInit {
 
-    private readonly logger = new Logger(SchemaResponsePayloadSub.name);
+    private readonly logger = new Logger(ContractDriftResponsePayloadSub.name);
 
-    readonly channels = ["jdozer:fuzzer:status-code"];
-    readonly entityType = "schema-response";
+    readonly channels = ["jdozer:fuzzer:contract-drift"];
+    readonly entityType = "contract-drift";
     readonly eventType = "status-code";
 
     constructor(
@@ -23,7 +23,7 @@ export class SchemaResponsePayloadSub implements EventConsumer, OnModuleInit {
 
     onModuleInit() {
         this.registry.register(this);
-        this.logger.log(`${SchemaResponsePayloadSub.name} registered`);
+        this.logger.log(`${ContractDriftResponsePayloadSub.name} registered`);
     }
 
     async handleEvent(event: any, channel: string): Promise<void> {
@@ -33,15 +33,15 @@ export class SchemaResponsePayloadSub implements EventConsumer, OnModuleInit {
 
 
 @Injectable()
-export class SchemaResponsePayload implements OnModuleInit {
+export class ContractDriftResponsePayload implements OnModuleInit {
 
-    private readonly logger = new Logger(SchemaResponsePayload.name);
+    private readonly logger = new Logger(ContractDriftResponsePayload.name);
     private readonly keyManager = new KeyManager();
 
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly sub: SchemaResponsePayloadSub
+        private readonly sub: ContractDriftResponsePayloadSub
     ) { }
 
     onModuleInit() {
@@ -60,7 +60,6 @@ export class SchemaResponsePayload implements OnModuleInit {
             let validation: any;
 
             if ([`exact`, `wildcard`, `default`].includes(statusCodeSchema.matchType)) {
-
                 let op = await this.redisService.get(this.keyManager.forOperation(res.operationId, fuzzerId));
                 let undecodedPayload = this.undecodePayload(res.payload);
                 let schema = this.getSchema(op, statusCodeSchema.matched);
@@ -77,7 +76,7 @@ export class SchemaResponsePayload implements OnModuleInit {
                 this.redisService.set(this.keyManager.schemaProbeResponsePayloadKey(fuzzerId, res.operationId, res.uuidReq), validation).catch((err) => {
                     this.logger.error(`[validate] An error occurred while attempting to save the schema analysis.: ${err}`, err);
                 }),
-                this.redisPubSub.publish("jdozer:fuzzer:schema", fuzzerId, "payload", "schema-response", {
+                this.redisPubSub.publish("jdozer:fuzzer:contract-drift", fuzzerId, "payload", "response", {
                     id: validation.id,
                     operationId: validation.operationId,
                     fuzzerId: validation.fuzzerId,
@@ -102,13 +101,13 @@ export class SchemaResponsePayload implements OnModuleInit {
             const v = schemaUtils.validate(payload);
             return {
                 isValid: v.valid,
-                finding: SchemaResponseValidationFindings[`${+!!schema}-${+!!payload}-${+v.valid}`],
+                finding: ContractDriftResponsePayloadFindings[`${+!!schema}-${+!!payload}-${+v.valid}`],
                 errors: v.errors
             } as Validation;
         } else {
             return {
                 isValid: (!schema && !payload),
-                finding: SchemaResponseValidationFindings[`${+!!schema}-${+!!payload}`]
+                finding: ContractDriftResponsePayloadFindings[`${+!!schema}-${+!!payload}`]
             } as Validation;
         }
     }

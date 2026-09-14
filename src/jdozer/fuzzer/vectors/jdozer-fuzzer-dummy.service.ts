@@ -10,8 +10,9 @@ export class JDozerFuzzerDummy {
 
   constructor(private readonly redisService: RedisService) { }
 
-  async generatePayloads(fuzzerId: string, operations: any[]): Promise<void> {
+  async generatePayloads(fuzzerId: string, operations: any[]): Promise<number> {
 
+    const saves: Promise<void>[] = [];
     for (const operation of operations) {
 
       if (operation.req && operation.req.payload) {
@@ -29,14 +30,10 @@ export class JDozerFuzzerDummy {
             message: test.message || ''
           });
         }
-
-        await Promise.all(testCases.map(testCase =>
-          this.redisService.set(`JDF:${fuzzerId}:DMM:${testCase.operationId}:payload:${testCase.id}`, testCase)
-        ));
-
-        this.logger.log(`Generated ${generatedTests.length} payload dummy cases for operation ${operation.name}`);
-
+        testCases.forEach(testCase => saves.push(this.redisService.set(`JDF:${fuzzerId}:DMM:${testCase.operationId}:payload:${testCase.id}`, testCase)));
       }
     }
+    await Promise.all(saves);
+    return saves.length;
   }
 }

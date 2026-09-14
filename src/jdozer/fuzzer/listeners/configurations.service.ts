@@ -27,7 +27,7 @@ export class ConfugurationsSub implements EventConsumer, OnModuleInit {
         this.logger.log("TotalCasesSub registered");
     }
 
-    handleEvent(data: any, channel: string): void {
+    async handleEvent(data: any, channel: string): Promise<void> {
         this.logger.warn(`Method not implemented ${channel} | ${this.entityType} | ${this.eventType}`);
     }
 

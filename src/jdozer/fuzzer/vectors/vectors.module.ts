@@ -3,6 +3,7 @@ import { VectorsBootstrap } from './vectors-bootstrap';
 import { VectorUtils } from './vector-utils';
 import { JDozerFuzzerVectors } from './jdozer-fuzzer-vectors';
 import { VectorsSubscriber } from './jdozer-fuzzer-vectors-sub';
+import { JDozerFuzzerDummy } from './jdozer-fuzzer-dummy.service';
 
 @Module({
     imports: [],
@@ -10,7 +11,8 @@ import { VectorsSubscriber } from './jdozer-fuzzer-vectors-sub';
         VectorsBootstrap,
         VectorUtils,
         VectorsSubscriber,
-        JDozerFuzzerVectors
+        JDozerFuzzerVectors,
+        JDozerFuzzerDummy
     ],
     exports: [VectorsBootstrap, VectorUtils, JDozerFuzzerVectors],
 })

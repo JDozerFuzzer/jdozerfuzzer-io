@@ -8,6 +8,7 @@ import { FuzzerOperation } from '../commons/schemas/fuzzer-operation.dto';
 import { Fuzzer } from '../commons/schemas/fuzzer.dto';
 import { RedisService } from '../commons/storage/redis.service';
 import { VectorUtils } from './vector-utils';
+import { JDozerFuzzerDummy } from './jdozer-fuzzer-dummy.service';
 
 export class VectorException extends Error {
   constructor(message: string) {
@@ -26,35 +27,58 @@ export class JDozerFuzzerVectors implements OnModuleInit {
     private readonly redisService: RedisService,
     private readonly redisPubSub: RedisPubSub,
     private readonly vectorsSubscriber: VectorsSubscriber,
-    private readonly vectorUtils: VectorUtils
+    private readonly vectorUtils: VectorUtils,
+    private readonly dummy: JDozerFuzzerDummy
   ) { }
 
   onModuleInit() {
     this.vectorsSubscriber.handleEvent = async (event: any, channel: string): Promise<void> => {
-      if (event.headers.entityType === 'fuzzer-seeder' && event.headers.eventType === 'builder-successful') {
-        this.createVectors(event.payload.id);
+      if (event.headers.entityType === this.vectorsSubscriber.entityType && event.headers.eventType === this.vectorsSubscriber.eventType) {
+        this.log.debug(`[onModuleInit] Event received: ${event.headers.entityType} ${event.headers.eventType}`);
+        await this.createTestCases(event.payload.id);
       }
       return;
     };
   }
 
-  async createVectors(fuzzerId: UUID): Promise<void> {
+  async createTestCases(fuzzerId: UUID): Promise<void> {
+    try {
+      const fuzzer: Fuzzer = await this.redisService.get(this.keyManager.forFuzz(fuzzerId));
+      const operationsKeys: string[] = fuzzer.operationIds.map((operationId) => {
+        return this.keyManager.forOperation(operationId, fuzzerId);
+      });
+      const operations: FuzzerOperation[] = await this.redisService.mget(operationsKeys);
+
+      const dummyCases = await this.payloadDummy(fuzzer, operations);
+      const vectorCases = await this.createVectors(fuzzer, operations);
+      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, { vectorCases, dummyCases, totalCases: vectorCases + dummyCases });
+
+    } catch (e) {
+      this.log.error(`[createTestCases] Error in createTestCases: ${e}`, e);
+      throw e;
+    }
+  }
+
+  async payloadDummy(fuzzer: Fuzzer, operations: FuzzerOperation[]): Promise<number> {
+    try {
+      return await this.dummy.generatePayloads(fuzzer.id, operations);
+    } catch (e) {
+      this.log.error(`[payloadDummy] Error in payloadDummy: ${e}`, e);
+      throw e;
+    }
+  }
+
+  async createVectors(fuzzer: Fuzzer, operations: FuzzerOperation[]): Promise<number> {
     try {
 
-      this.log.log(`Starting vector generation for fuzzerId: ${fuzzerId}`);
-      const fuzzer: Fuzzer = await this.redisService.get(this.keyManager.forFuzz(fuzzerId));
-      let totalVectorsCreated = 0;
-
       const _count: any = {};
-      for (const operationId of fuzzer.operationIds) {
-        _count[operationId] = 0;
-        const operation: FuzzerOperation = await this.redisService.get(this.keyManager.forOperation(operationId, fuzzerId));
-        this.log.log(`Processing operation: ${operation.name}`);
+      const saves: Promise<void>[] = [];
+      for (const operation of operations) {
+        _count[operation.name] = 0;
+        this.log.debug(`[createVectors] Processing operation: ${operation.name}`);
 
-        let forPayload: any = {};
         if (operation.req.payload) {
           const parameters: string[] = await this.vectorUtils.getPropertiesString(operation.req.payload);
-          this.log.verbose(`Parameters found: ${parameters}`);
           const vectorsKeys: string[] = await this.vectorUtils.getRandomVectorsKeys(parameters.length);
           const dmmSeeder: any = await this.vectorUtils.getDmmValid(fuzzer.id, operation.name, 'payload');
 
@@ -62,40 +86,22 @@ export class JDozerFuzzerVectors implements OnModuleInit {
           for (const vk of vectorsKeys) {
             const vector: any = await this.redisService.get(vk);
             const newDmm = this.vectorUtils.vectorToDmm(dmmSeeder, parameters[index], vector);
-            this.log.verbose(`New DMM created: ${newDmm.id}`);
-            await this.redisService.set(this.keyManager.forDmm(fuzzerId, operation.name, newDmm.in, newDmm.id), newDmm);
-            newDmm.data = undefined;
-            await this.redisPubSub.publish(`jdozer:fuzzer:vector`, fuzzerId, 'payload', `fuzzer-vector`, newDmm);
-            forPayload++;
-            (index <= 0) ? index = parameters.length - 1 : index--;
-            _count[operationId]++;
+            saves.push(this.redisService.set(this.keyManager.forDmm(fuzzer.id, operation.name, newDmm.in, newDmm.id), newDmm));
           }
-          this.log.verbose(`For payload: ${forPayload}`);
-          totalVectorsCreated += forPayload;
         }
-        this.redisPubSub.publish(`jdozer:fuzzer:vector`, fuzzer.id, 'total-payloads', `fuzzer-vector`, { totalVectors: totalVectorsCreated });
       }
 
-      await this.eventHandler('builder-successful', { totalVectors: totalVectorsCreated, _count }, fuzzerId);
-      this.log.log(`Vector generation finished. Total vectors created: ${totalVectorsCreated}`);
-      return;
+      await Promise.all(saves).then(async () => {
+        this.log.debug(`Vector generation finished. Total vectors created: ${saves.length}`);
+      }).catch((e) => {
+        this.log.error(`Error while saving vectors: ${(e as Error).message}`, (e as Error).stack);
+      });
+
+      return saves.length;
     } catch (error) {
       this.log.error(`Catastrophic failure in createVectors: ${(error as Error).message}`, (error as Error).stack);
       throw error;
     }
   }
 
-  private async eventHandler(eventType: string, payload: any, fuzzerId: string): Promise<void> {
-    try {
-      const fullPayload = {
-        fuzzerId: fuzzerId,
-        totalVectors: payload.totalVectors,
-        operations: payload._count
-      };
-      await this.redisPubSub.publish(`jdozer:fuzzer:vector`, fuzzerId as UUID, eventType, 'fuzzer-vectors', fullPayload);
-      this.log.log(`Event ${eventType} published for fuzzer ${fuzzerId}`);
-    } catch (error) {
-      this.log.error(`Failed to publish event ${eventType} for fuzzer ${fuzzerId}: ${(error as Error).message}`, (error as Error).stack);
-    }
-  }
 }

@@ -26,7 +26,8 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
         this.logger.log(`${SocketSubscriber.name} registered`);
     }
 
-    handleEvent(data: any, channel: string): Promise<void> | void {
+    async handleEvent(data: any, channel: string): Promise<void> {
+        this.logger.verbose(`[handleEvent] Event received: ${channel} | ${data.headers.entityType} | ${data.headers.eventType}`);
         if (!this.filter(data.headers.entityType, data.headers.eventType)) {
             return;
         }

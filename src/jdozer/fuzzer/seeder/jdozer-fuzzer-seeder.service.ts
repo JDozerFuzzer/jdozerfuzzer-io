@@ -1,10 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Fuzzer, JDozerOpenApiLoad } from "./jdozer-openapi-load.service";
-import { JDozerFuzzerDummy } from "./jdozer-fuzzer-dummy.service";
 import { RedisService } from "../commons/storage/redis.service";
 import { KeyManager } from "../commons/storage/key-manager";
-import { randomUUID } from "crypto";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
+import { FuzzerOperation } from "../commons/schemas/fuzzer-operation.dto";
 
 
 @Injectable()
@@ -16,43 +15,36 @@ export class JDozerFuzzerSeeder {
     constructor(
         private readonly redisService: RedisService,
         private readonly redisPubSub: RedisPubSub,
-        private readonly openApiLoad: JDozerOpenApiLoad,
-        private readonly fuzzerDummy: JDozerFuzzerDummy
+        private readonly openApiLoad: JDozerOpenApiLoad
     ) { }
 
     async run(contract: any): Promise<Fuzzer> {
         try {
             await this.openApiLoad.build(contract);
             let fuzzer: Fuzzer = this.openApiLoad.getFuzzer();
-            let operations = this.openApiLoad.getOperations();
+            let operations: FuzzerOperation[] = this.openApiLoad.getOperations();
             let encodeContract: string = this.openApiLoad.getEncodeContract();
-            await this.redisService.set(this.keyManager.forApi(fuzzer.id), encodeContract);
-            await this.redisService.set(this.keyManager.forFuzz(fuzzer.id), fuzzer);
+            const saves: Promise<any>[] = [];
+            saves.push(this.redisService.set(this.keyManager.forApi(fuzzer.id), encodeContract));
+            saves.push(this.redisService.set(this.keyManager.forFuzz(fuzzer.id), fuzzer));
+            saves.push(this.redisPubSub.publish(`jdozer:fuzzer:fuzzer`, fuzzer.id, `created`, `fuzzer`, fuzzer));
 
-            operations.forEach(async (op) => {
-                await this.redisService.set(this.keyManager.forOperation(op.name, fuzzer.id), op);
+            operations.forEach((op) => {
+                saves.push(this.redisService.set(this.keyManager.forOperation(op.name, fuzzer.id), op));
             });
-
-            this.logger.debug(`Fuzzer ${fuzzer.id} and operations saved successfully`);
-
-            await this.fuzzerDummy.generatePayloads(fuzzer.id, operations);
-
-            const f: Fuzzer = await this.redisService.get(this.keyManager.forFuzz(fuzzer.id));
-            await this.redisPubSub.publish(`jdozer:fuzzer:seeder`, f.id, `builder-successful`, `fuzzer-seeder`, f);
-            const dmmCount: string[] = await this.redisService.getKeys(this.keyManager.dmmAllPattern(fuzzer.id));
-            const dmmAgg: any = {};
-            dmmCount.forEach(async (key) => {
-                let op = key.split(':')[3];
-                if (!dmmAgg[op])
-                    dmmAgg[op] = 1;
-                else
-                    dmmAgg[op] += 1;
-            });
-            await this.redisPubSub.publish(`jdozer:fuzzer:seeder`, f.id, `dummy-generated`, `fuzzer-seeder`, dmmAgg);
-            return f;
-
+            saves.push(this.redisPubSub.publish(`jdozer:fuzzer:fuzzer`, fuzzer.id, `created`, `operations`, operations.map((op) => {
+                return {
+                    id: op.id,
+                    name: op.name,
+                    path: op.path,
+                    method: op.method
+                };
+            })));
+            await Promise.all(saves);
+            this.logger.log(`Successful contract reading: ${fuzzer.name}`, `for the fuzzer: ${fuzzer.id}`);
+            return fuzzer;
         } catch (e) {
-            this.logger.error(`Error in run: ${e}`);
+            this.logger.error(`[run] Error in run: ${e}`);
             throw e;
         }
     }

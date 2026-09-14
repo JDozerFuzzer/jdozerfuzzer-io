@@ -75,8 +75,8 @@ export class VectorUtils {
       return dmmClone;
 
     } catch (e) {
-      this.log.error(`Error vector to dmm: ${(e as Error).message}`, (e as Error).stack);
-      throw new VectorException(`Error vector to dmm: ${(e as Error).message}`);
+      this.log.error(`[vectorToDmm] Error vector to dmm: ${(e as Error).message}`, (e as Error).stack);
+      throw new VectorException(`[vectorToDmm] Error vector to dmm: ${(e as Error).message}`);
     }
   }
 
@@ -101,8 +101,12 @@ export class VectorUtils {
   public async getDmmValid(fuzzerId: UUID, operationId: string, context: string): Promise<any> {
     try {
       const dmmKeys: string[] = await this.redisService.getKeys(this.keyManager.dmmContextPattern(fuzzerId, operationId, context));
-      const key: number = this.random(0, dmmKeys.length - 1);
-      return await this.redisService.get(dmmKeys[key]);
+      let dmm: any = undefined;
+      do {
+        const key: number = this.random(0, dmmKeys.length - 1);
+        dmm = await this.redisService.get(dmmKeys[key]);
+      } while (!dmm.valid);
+      return dmm;
     } catch (e) {
       this.log.error(`Error getting dmm valid: ${(e as Error).message}`, (e as Error).stack);
       throw new VectorException(`Error getting dmm valid: ${(e as Error).message}`);

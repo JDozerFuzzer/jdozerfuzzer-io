@@ -7,8 +7,6 @@ import * as fs from 'fs';
 import { RedisService } from '../commons/storage/redis.service';
 import { RedisPubSub } from '../commons/pubsub/redis-pub-sub';
 import { KeyManager } from '../commons/storage/key-manager';
-import { EngineScenarios } from './engine-scenarios';
-import { EnginePhases } from './engine-phases';
 import { EngineException } from './engine-exception';
 
 @Injectable()
@@ -17,14 +15,10 @@ export class JDozerFuzzerEngineIgnition {
     private readonly log = new Logger(JDozerFuzzerEngineIgnition.name);
     private readonly keyManger: KeyManager = new KeyManager();
 
-    private fuzzer: any;
-
     private readonly _MSG_NOTFOUND: string = 'Fuzzer not found or not owned by the current user!';
 
     constructor(
         private readonly redisService: RedisService,
-        private readonly engineScenarios: EngineScenarios,
-        private readonly enginePhases: EnginePhases,
         private readonly redisPubSub: RedisPubSub
     ) { }
 
@@ -33,7 +27,7 @@ export class JDozerFuzzerEngineIgnition {
 
             const engCfg = await this.redisService.get(this.keyManger.forEngine(fuzzerId.toString()));
             const engCfgYml = YAML.stringify(engCfg);
-            await this.exec(engCfgYml, fuzzerId.toString());
+            await this.exec(engCfgYml, fuzzerId);
 
         } catch (e) {
             throw new EngineException({
@@ -63,9 +57,9 @@ export class JDozerFuzzerEngineIgnition {
         };
     }
 
-    private async exec(cfg: string, prefix: string, options: string[] = []): Promise<void> {
-        const fileName = `${prefix}-engine-cfg.yml`;
-        const summaryFile = `${prefix}-summary.json`;
+    private async exec(cfg: string, fuzzerId: UUID, options: string[] = []): Promise<void> {
+        const fileName = `${fuzzerId}-engine-cfg.yml`;
+        const summaryFile = `${fuzzerId}-summary.json`;
         const pathFile = `/tmp/${fileName}`;
         fs.writeFileSync(pathFile, cfg);
 
@@ -87,8 +81,8 @@ export class JDozerFuzzerEngineIgnition {
                     reject(new Error(`Engine process exited with code ${code}`));
                 } else {
                     const summary: any = fs.readFileSync(`/tmp/${summaryFile}`, 'utf-8');
-                    await this.redisService.set(this.keyManger.forEngine(this.fuzzer.id).concat(`:SUM`), JSON.parse(summary));
-                    await this.engineStoppedEvent(this.fuzzer.id);
+                    await this.redisService.set(this.keyManger.forEngine(fuzzerId).concat(`:SUM`), JSON.parse(summary));
+                    await this.engineStoppedEvent(fuzzerId);
                     this.log.log(`Engine process with id ${engineProcess.pid} exited successfully!`);
                     resolve();
                 }
@@ -101,7 +95,7 @@ export class JDozerFuzzerEngineIgnition {
 
             this.log.log(`Engine process started with id ${engineProcess.pid}`);
             engineProcess.unref();
-            this.engineStartedEvent(this.fuzzer.id as UUID);
+            this.engineStartedEvent(fuzzerId);
         });
     }
 

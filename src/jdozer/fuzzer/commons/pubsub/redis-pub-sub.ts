@@ -30,7 +30,7 @@ export class RedisPubSub {
           this.log.error(`Error publishing event to channel ${channel}`, err);
           throw err;
         }
-        this.log.verbose(`Message posted in the channel ${channel} ${sent}`);
+        this.log.verbose(`Message posted in the channel ${channel} ${sent}`, `${entityType}:${eventType} ${event.headers.eventId}`);
       });
     } catch (error) {
       this.log.error(`Error publishing event to channel ${channel}`, error);

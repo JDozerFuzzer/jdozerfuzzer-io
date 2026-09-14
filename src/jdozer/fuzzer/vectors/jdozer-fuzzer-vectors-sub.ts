@@ -8,9 +8,9 @@ export class VectorsSubscriber implements EventConsumer, OnModuleInit {
 
     private readonly logger = new Logger(VectorsSubscriber.name);
 
-    readonly channels = ["jdozer:fuzzer:seeder"];
-    readonly entityType = "fuzzer-seeder";
-    readonly eventType = "builder-successful";
+    readonly channels = ["jdozer:fuzzer:fuzzer"];
+    readonly entityType = "fuzzer";
+    readonly eventType = "created";
 
     constructor(
         private readonly registry: EventConsumerRegistry
@@ -22,6 +22,6 @@ export class VectorsSubscriber implements EventConsumer, OnModuleInit {
     }
 
     async handleEvent(event: any, channel: string): Promise<void> {
-        this.logger.warn(`Method not implemented: ${channel} | ${this.entityType} | ${this.eventType} `);
+        this.logger.warn(`Method not implemented: ${channel}`, `${event.headers.entityType}:${event.headers.eventType} ${event.headers.eventId}`);
     }
 }

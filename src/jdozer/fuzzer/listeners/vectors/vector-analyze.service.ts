@@ -28,7 +28,7 @@ export class VectorAnalyzeSub implements EventConsumer, OnModuleInit {
         this.logger.log(`${this.constructor.name} registered`);
     }
 
-    handleEvent(data: any, channel: string): Promise<void> | void {
+    async handleEvent(data: any, channel: string): Promise<void> {
         throw new Error("Method not implemented.");
     }
 
@@ -47,9 +47,9 @@ export class VectorAnalyze implements OnModuleInit {
     ) { }
 
     onModuleInit() {
-        this.sub.handleEvent = (event: any, channel: string): void => {
+        this.sub.handleEvent = async (event: any, channel: string): Promise<void> => {
             if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
-                this.analyze(event.payload.fuzzerId);
+                await this.analyze(event.payload.fuzzerId);
             }
         };
     }

@@ -47,27 +47,34 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
       await this.client.psubscribe(channel);
       this.logger.log(`Subscribed to Redis channel: ${channel}`);
     }
-    this.client.on('pmessage', (pattern, channel, message) => {
-      this.handleMessage(channel, message);
+    this.client.on('pmessage', async (pattern, channel, message) => {
+      this.logger.verbose(`[handleMessage] Pattern: ${pattern} | Channel: ${channel}`, `${message}`);
+      await this.handleMessage(pattern, message);
     });
     this.logger.debug(`EventRouterService initialization complete. Consumers registered: ${consumers.length}`);
   }
 
-  private handleMessage(channel: string, message: string) {
+  private async handleMessage(pattern: string, message: string) {
     try {
       const event = JSON.parse(message);
       const { headers: { entityType, eventType }, payload } = event;
 
-      const match = this.filterChannels(this.consumerMap, channel);
+      const match = this.filterChannels(this.consumerMap, pattern);
       const matchKeys = match.keys();
+      const handlers: Promise<any>[] = []
       for (const key of matchKeys) {
-        match.get(key)?.handleEvent(event, channel);
-        this.logger.verbose(
-          `Event ${eventType} for ${entityType} on channel ${channel} handled by ${match.get(key)?.constructor.name}`
-        );
+        const handler = match.get(key);
+        if (handler) {
+          handlers.push(handler.handleEvent(event, pattern));
+          this.logger.verbose(
+            `Event '${eventType}' for '${entityType}' on channel '${pattern}' handled by '${match.get(key)?.constructor.name}'`
+          );
+        }
       }
+      this.logger.verbose(`[handleMessage] Handlers: ${handlers.length}`);
+      await Promise.all(handlers);
     } catch (error) {
-      this.logger.error(`Error processing channel message ${channel}: ${error.message}`);
+      this.logger.error(`Error processing channel message ${pattern}: ${error.message}`);
     }
   }
 
@@ -89,15 +96,7 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
         continue;
       }
       for (const channel of channels) {
-        if (channel.includes('*')) {
-          const escaped = channel
-            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-            .replace(/\*/g, '.*');
-          const regex = new RegExp(`^${escaped}$`);
-          if (regex.test(target)) {
-            matched.set(consumerKey, consumerMap.get(consumerKey));
-          }
-        } else if (channel === target) {
+        if (channel === target) {
           matched.set(consumerKey, consumerMap.get(consumerKey));
         }
       }

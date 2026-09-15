@@ -9,9 +9,9 @@ export class EngineSubscriber implements EventConsumer, OnModuleInit {
 
     private readonly logger = new Logger(EngineSubscriber.name);
 
-    readonly channels = ["jdozer:fuzzer:vector"];
-    readonly entityType = "fuzzer-vectors";
-    readonly eventType = "builder-successful";
+    readonly channels = ["jdozer:fuzzer:test-cases"];
+    readonly entityType = "test-cases";
+    readonly eventType = "generated";
 
     constructor(
         private readonly registry: EventConsumerRegistry

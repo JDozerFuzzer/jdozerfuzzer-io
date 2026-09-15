@@ -46,10 +46,9 @@ export class JDozerFuzzerEngineBaseCfg {
         engineCfg.config.plugins = this.targetPlugins(fuzzer);
         engineCfg.before = this.getBeforeFunctions();
 
-        await Promise.all([
-            this.redis.set(this.keyManager.forEngine(fuzzer.id), engineCfg),
-            this.pubsub.publish(`jdozer:fuzzer:engine`, fuzzer.id, 'configurated', 'engine', this.buildEventPayload(engineCfg, testCasesKeys.length, fuzzer.id))
-        ]).catch((error) => {
+        await this.redis.set(this.keyManager.forEngine(fuzzer.id), engineCfg).then(() => {
+            this.pubsub.publish(`jdozer:fuzzer:configurations`, fuzzer.id, 'configurated', 'engine', this.buildEventPayload(engineCfg, testCasesKeys.length, fuzzer.id));
+        }).catch((error) => {
             this.log.error(`Error publishing the engine configuration event ${fuzzer.name}`, error);
             throw new EngineException({
                 message: `Error publishing the engine configuration event`,

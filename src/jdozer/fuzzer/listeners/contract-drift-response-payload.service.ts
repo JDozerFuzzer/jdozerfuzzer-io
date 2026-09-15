@@ -47,16 +47,16 @@ export class ContractDriftResponsePayload implements OnModuleInit {
     onModuleInit() {
         this.sub.handleEvent = async (event, channel) => {
             if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
-                await this.validate(event.headers.entityId as UUID, event.payload.operationId, event.payload.id as UUID);
+                await this.validate(event.headers.entityId as UUID, event.payload.operationId, event.payload.caseId as UUID);
             }
         }
     }
 
-    async validate(fuzzerId: UUID, operationId: string, responseId: UUID) {
+    async validate(fuzzerId: UUID, operationId: string, caseId: UUID) {
         try {
 
-            let statusCodeSchema: any = await this.redisService.get(this.keyManager.schemaStatusCodeKey(fuzzerId, operationId, responseId));
-            const res: any = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, responseId));
+            let statusCodeSchema: any = await this.redisService.get(this.keyManager.schemaStatusCodeKey(fuzzerId, operationId, caseId));
+            const res: any = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, caseId));
             let validation: any;
 
             if ([`exact`, `wildcard`, `default`].includes(statusCodeSchema.matchType)) {
@@ -68,7 +68,7 @@ export class ContractDriftResponsePayload implements OnModuleInit {
                 validation = this.validation(res.payload, undefined);
             }
 
-            validation.id = responseId;
+            validation.id = caseId;
             validation.fuzzerId = fuzzerId;
             validation.operationId = res.operationId;
 

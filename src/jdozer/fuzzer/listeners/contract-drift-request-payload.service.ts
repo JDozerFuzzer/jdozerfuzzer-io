@@ -48,7 +48,7 @@ export class ContractDriftRequestPayload implements OnModuleInit {
     onModuleInit() {
         this.sub.handleEvent = async (event: any, channel: string) => {
             if (event.headers.entityType === this.sub.entityType && event.headers.eventType === this.sub.eventType) {
-                await this.validate(event.payload.fuzzerId, event.payload.operationId, event.payload.uuidReq);
+                await this.validate(event.payload.fuzzerId, event.payload.operationId, event.payload.caseId);
             }
         }
     }

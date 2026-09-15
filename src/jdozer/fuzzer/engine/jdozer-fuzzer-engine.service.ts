@@ -20,17 +20,18 @@ export class EngineService implements OnModuleInit {
 
     onModuleInit() {
         this.engineSubscriber.handleEvent = async (event: any, channel: string): Promise<void> => {
-            if (event.headers.entityType === 'fuzzer-vectors' && event.headers.eventType === 'builder-successful') {
-                await this.startFuzzing(event.payload.fuzzerId as UUID);
+            const key = this.engineSubscriber.entityType + ':' + this.engineSubscriber.eventType;
+            const inboundKey = event.headers.entityType + ':' + event.headers.eventType;
+            if (inboundKey === key) {
+                await this.startFuzzing(event.payload.id as UUID);
             }
         }
     }
 
     async startFuzzing(fuzzerId: UUID): Promise<void> {
-        this.logger.log(`Starting fuzzing for fuzzerId: ${fuzzerId}`);
+        this.logger.log(`[startFuzzing] Starting fuzzing for fuzzerId: ${fuzzerId}`);
         await this.engineCfg.build(fuzzerId);
         await this.engineIgnition.start(fuzzerId);
-        this.logger.debug('Fuzzing started successfully...');
     }
 
 

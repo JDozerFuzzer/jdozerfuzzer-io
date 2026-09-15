@@ -51,7 +51,9 @@ export class JDozerFuzzerVectors implements OnModuleInit {
 
       const dummyCases = await this.payloadDummy(fuzzer, operations);
       const vectorCases = await this.createVectors(fuzzer, operations);
-      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, { vectorCases, dummyCases, totalCases: vectorCases + dummyCases });
+      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, { id: fuzzer.id, vectorCases, dummyCases, totalCases: vectorCases + dummyCases });
+
+      this.log.log(`[createTestCases] ${dummyCases + vectorCases} test cases created for fuzzerId: ${fuzzerId}`);
 
     } catch (e) {
       this.log.error(`[createTestCases] Error in createTestCases: ${e}`, e);
@@ -91,9 +93,7 @@ export class JDozerFuzzerVectors implements OnModuleInit {
         }
       }
 
-      await Promise.all(saves).then(async () => {
-        this.log.debug(`Vector generation finished. Total vectors created: ${saves.length}`);
-      }).catch((e) => {
+      await Promise.all(saves).catch((e) => {
         this.log.error(`Error while saving vectors: ${(e as Error).message}`, (e as Error).stack);
       });
 

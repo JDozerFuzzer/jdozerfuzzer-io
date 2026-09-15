@@ -1,7 +1,6 @@
 
 const redis = require("redis");
 const { randomUUID } = require("crypto");
-const { exit } = require("process");
 const { Logger, LogLevel } = require('@nestjs/common');
 
 class jDozerFuzzerEngineRunner {
@@ -16,14 +15,8 @@ class jDozerFuzzerEngineRunner {
         this.#redisConnect();
     }
 
-    /**
-     * 
-     * @param {*} context
-     * @param {*} event
-     * @returns 
-     */
     async prepareCases(context, event) {
-        this.#log.verbose(`[prepareCases] Starting...`);
+        this.#log.log(`[prepareCases] Starting...`);
 
         try {
 
@@ -37,36 +30,22 @@ class jDozerFuzzerEngineRunner {
 
             let fuzzer = JSON.parse(fuzzerRaw);
 
-            /**
-             * @TODO: Remove this event
-             */
-            this.runtimeEvents({ fuzzerId: context.vars.testId }, 'prepare-cases');
-
             for (let op of fuzzer.operationIds) {
                 await this.#loadDmmCases(fuzzer.id, op);
-                this.runtimeEvents({ fuzzerId: context.vars.testId, operationId: op }, 'cases-loaded');
             }
-
-            this.#log.verbose(`[prepareCases] For fuzzer ${fuzzer.name} loaded successfully`);
             return;
 
         } catch (e) {
-            this.#log.error("Error in prepareCases:", e.message);
+            this.#log.error(`[prepareCases] Error in prepareCases: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {import("crypto").UUID} fuzzerId 
-     * @param {string} operationId 
-     * @returns dmmCase: { payload: string, headers: string, query: string, path: string } | { }
-     */
     async #getCase(fuzzerId, operationId) {
         try {
             let casesKeys = await this.#getDmmCases(fuzzerId, operationId);
             if (!casesKeys) {
-                this.#log.warn(`#getCase: No DMM cases for operation ${operationId} and fuzzer ${fuzzerId}`);
+                this.#log.warn(`[#getCase] No DMM cases for operation ${operationId} and fuzzer ${fuzzerId}`);
                 return undefined;
             }
             let selectedCaseKeyAndReduce = await this.#getCasesKeys(casesKeys);
@@ -81,18 +60,11 @@ class jDozerFuzzerEngineRunner {
             return dmmCase;
 
         } catch (e) {
-            this.#log.error("Error in getCase:", e);
+            this.#log.error(`[#getCase] Error in getCase: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {selectedCaseKeyAndReduce} selectedCaseKeyAndReduce 
-     * @param {string} operationId 
-     * @param {import("crypto").UUID} fuzzerId 
-     * @returns Promise<void>
-     */
     async #updateDmmCases(selectedCaseKeyAndReduce, operationId, fuzzerId) {
         try {
             let keys = Object.keys(selectedCaseKeyAndReduce);
@@ -109,16 +81,11 @@ class jDozerFuzzerEngineRunner {
             await this.#redis.set('JDF:'.concat(fuzzerId).concat(':ENG:CASES:').concat(operationId), JSON.stringify(dmmCasesKeys));
             return;
         } catch (e) {
-            this.#log.error("Error in #updateDmmCases:", e);
+            this.#log.error(`[#updateDmmCases] Error in updateDmmCases: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param casesKeys: { payload: string[], headers: string[], query: string[], path: string[] } casesKeys 
-     * @returns selectedCaseKeyAndReduce: { payload: { selectedCaseKey: string, rest: string[] }, headers: { selectedCaseKey: string, rest: string[] }, query: { selectedCaseKey: string, rest: string[] }, path: { selectedCaseKey: string, rest: string[] } }
-     */
     async #getCasesKeys(casesKeys) {
         try {
             let keys = Object.keys(casesKeys);
@@ -130,55 +97,37 @@ class jDozerFuzzerEngineRunner {
             }
             return selectedCaseKeyAndReduce;
         } catch (e) {
-            this.#log.error("Error in #getCasesKeys:", e);
+            this.#log.error(`[#getCasesKeys] Error in getCasesKeys: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {import("crypto").UUID} fuzzerId 
-     * @param {string} operationId 
-     * @returns casesKeys: { payload: string[], headers: string[], query: string[], path: string[] } | undefined
-     */
     async #getDmmCases(fuzzerId, operationId) {
         try {
             let qry = 'JDF:'.concat(fuzzerId).concat(':ENG:CASES:').concat(operationId);
             let cases = JSON.parse(await this.#redis.get(qry));
             return (Object.keys(cases).length > 0) ? cases : undefined;
         } catch (e) {
-            console.error("Error in #getDmmCases:", e);
+            this.#log.error(`[#getDmmCases] Error in getDmmCases: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {string[]} arr 
-     * @returns keyAndReduce: { selectedCaseKey: string, rest: string[] } | {}
-     */
     async #getDmmKeyAndReduce(arr) {
         try {
             if (arr != undefined && arr.length > 0) {
                 let c = await this.#redis.get(arr[0]);
                 let r = arr.slice(1);
                 let keyAndReduce = { selectedCaseKey: c, rest: r };
-                //this.#log.verbose(`#getDmmKeyAndReduce: keyAndReduce: ${keyAndReduce.rest.length}`, `selectedCaseKey: ${keyAndReduce.selectedCaseKey}`);
                 return keyAndReduce;
             }
             return {};
         } catch (e) {
-            this.#log.error("Error in #getDmmKeyAndReduce:", e);
+            this.#log.error(`[#getDmmKeyAndReduce] Error in getDmmKeyAndReduce: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {import("crypto").UUID} fuzzerId 
-     * @param {string} operationId 
-     * @returns Promise<void>
-     */
     async #loadDmmCases(fuzzerId, operationId) {
         try {
 
@@ -196,46 +145,29 @@ class jDozerFuzzerEngineRunner {
             await this.#redis.set('JDF:'.concat(fuzzerId).concat(':ENG:CASES:').concat(operationId), JSON.stringify(dmm));
 
         } catch (e) {
-            console.error(`#loadDmmCases: ${e.message}`);
+            this.#log.error(`[#loadDmmCases] Error in loadDmmCases: ${e.message}`, e);
             throw e;
         }
     }
 
-    /**
-     * 
-     * @param {import("crypto").UUID} fuzzerId 
-     * @param {string} operationId 
-     * @param {string} type 
-     * @returns string[] Lista de keys DMM
-     */
     async #getDmmKeysByType(fuzzerId, operationId, type) {
         try {
             let fnd = 'JDF:'.concat(fuzzerId).concat(':DMM:').concat(operationId).concat(':').concat(type).concat(':*');
-            //this.#log.verbose(`#getDmmKeysByType: Finding DMM keys with pattern: ${fnd}`);
             return await this.#redis.keys(fnd);
         } catch (e) {
-            let err = `Error in #getDmmKeysByType for type ${type}: ${e.message}`;
-            this.#log.error(err);
-            throw new Error(err);
+            this.#log.error(`[#getDmmKeysByType] Error in getDmmKeysByType for type ${type}: ${e.message}`, e);
+            throw e;
         }
     }
 
-    /**
-     * 
-     * @param {*} req 
-     * @param {*} context 
-     * @param {*} event 
-     * @param {*} o 
-     * @returns 
-     */
     async beforeRequest(req, context, event, o) {
 
         try {
 
             let op = context.scenario.name.toString();
-
             let request = {
-                uuidReq: req.uuid,
+                caseId: req.uuid,
+                fuzzerId: context.vars.testId,
                 operationId: op,
                 url: req.url,
                 params: {}
@@ -243,7 +175,7 @@ class jDozerFuzzerEngineRunner {
 
             let dmmCases = await this.#getCase(context.vars.testId, op);
             if (!dmmCases) {
-                this.#log.warn(`No DMM cases for operation ${op} and fuzzer ${context.vars.testId}`);
+                this.#log.warn(`[beforeRequest] No DMM cases for operation ${op} and fuzzer ${context.vars.testId}`);
                 return;
             }
 
@@ -285,9 +217,6 @@ class jDozerFuzzerEngineRunner {
                     req.url = req.url.replace(`{${key}}`, data[key]);
                 };
 
-                /**
-                 * @todo: Tengo dudas sobre este codigo.
-                 */
                 if (keys.length === 0 && params.path.property) {
                     req.url = req.url.replace(`{${path.property}}`, '');
                 }
@@ -297,17 +226,16 @@ class jDozerFuzzerEngineRunner {
 
             } else { params.path = {} }
 
-            const reqKey = 'JDF:'.concat(context.vars.testId).concat(':ENG:').concat(request.operationId).concat(':').concat(request.uuidReq).concat(':REQ');
-            await Promise.all([
-                this.#redis.set(reqKey, JSON.stringify(request))
-                    .catch(e => this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e)),
-                this.runtimeEvent({
-                    fuzzerId: context.vars.testId,
+            const reqKey = 'JDF:'.concat(context.vars.testId).concat(':ENG:').concat(request.operationId).concat(':').concat(request.caseId).concat(':REQ');
+
+            await this.#redis.set(reqKey, JSON.stringify(request)).then(async () => {
+                await this.runtimeEvent({
+                    caseId: request.caseId,
+                    fuzzerId: request.fuzzerId,
                     operationId: request.operationId,
-                    uuidReq: request.uuidReq,
-                    fullKey: reqKey
+                    scenarioName: context.scenario.name.toString()
                 }, 'before-request')
-            ]).catch(e => this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e));
+            }).catch(e => this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e));
 
         } catch (e) {
             this.#log.error(`[beforeRequest] Error while attempting to save the request data: ${e.message}`, e);
@@ -319,6 +247,7 @@ class jDozerFuzzerEngineRunner {
         try {
             let response = {
                 operationId: context.scenario.name.toString(),
+                caseId: req.uuid,
                 uuidRes: res.uuid,
                 uuidReq: req.uuid,
                 payload: Buffer.from(res.body).toString('base64'),
@@ -354,30 +283,30 @@ class jDozerFuzzerEngineRunner {
                 time: new Date().getTime()
             };
 
-            let reqKey = (await this.#redis.keys('JDF:*:ENG:*:'.concat(req.uuid).concat(':REQ')))[0];
-            if (!reqKey) {
-                this.#log.error('Request not found');
+            const reqKey = `JDF:${context.vars.testId}:ENG:${context.scenario.name}:${req.uuid}:REQ`;
+            const request = await this.#redis.get(reqKey);
+
+            if (!request) {
+                this.#log.error(`[afterResponse] Request not found for key: ${reqKey}`);
                 return;
             }
 
             const resKey = reqKey.replace(':REQ', ':RES');
             await this.#redis.set(resKey, JSON.stringify(response));
 
-            const requestBefore = JSON.parse(await this.#redis.get(reqKey));
+            const requestBefore = JSON.parse(request);
             let requestAggregate = Object.assign(requestBefore, req);
             requestAggregate.agent = undefined;
-            await this.#redis.set(reqKey, JSON.stringify(requestAggregate));
-
-            await this.runtimeEvent({
-                fuzzerId: context.vars.testId,
-                operationId: requestAggregate.operationId,
-                caseId: req.uuid,
-                responseId: resKey,
-                scenarioName: context.scenario.name.toString()
-            }, 'after-response');
+            await this.#redis.set(reqKey, JSON.stringify(requestAggregate)).then(async () => {
+                await this.runtimeEvent({
+                    fuzzerId: context.vars.testId,
+                    operationId: requestAggregate.operationId,
+                    caseId: requestAggregate.caseId,
+                    scenarioName: context.scenario.name.toString()
+                }, 'after-response').catch(e => this.#log.error(`[afterResponse] Error while attempting to send runtime event after response: ${e.message}`, e));
+            }).catch(e => this.#log.error(`[afterResponse] Error while attempting to save the request data: ${e.message}`, e));
         } catch (e) {
-            this.#log.error("Error en afterResponse:", e);
-            this.#log.error(`Values: requestId: ${req.uuid}`);
+            this.#log.error(`[afterResponse] Error while attempting to save the response data: ${e.message}`, e);
         }
 
     }
@@ -392,7 +321,7 @@ class jDozerFuzzerEngineRunner {
                 entityId: context.vars.testId,
                 entityType: this.ENTITY_TYPE_FUZZER_ENGINE,
                 eventType: 'attack-completed',
-                version: '1.0.0'
+                version: '1.0'
             },
             payload: {
                 fuzzerId: context.vars.testId
@@ -400,7 +329,7 @@ class jDozerFuzzerEngineRunner {
         };
 
         await this.publishEvent(this.CHANNEL_FUZZER_ENGINE, message);
-        this.#log.log('Attack completed!');
+        this.#log.log(`[attackCompleted] Attack completed! - Trace ID: ${context.vars.testId}`);
 
         return;
 
@@ -408,7 +337,7 @@ class jDozerFuzzerEngineRunner {
 
     async #redisConnect() {
         if (!this.#redis) {
-            this.#log.debug(`Attempting to connect to Redis: ${process.env.FUZZER_REDIS_HOST}:${process.env.FUZZER_REDIS_PORT}`);
+            this.#log.log(`Attempting to connect to Redis: ${process.env.FUZZER_REDIS_HOST}:${process.env.FUZZER_REDIS_PORT}`);
             this.#redis = redis.createClient({
                 url: `redis://${process.env.FUZZER_REDIS_HOST}:${process.env.FUZZER_REDIS_PORT}`
             });
@@ -417,7 +346,7 @@ class jDozerFuzzerEngineRunner {
                 .then(() => this.#log.log(`Redis connected successfully! - PID: ${process.pid}`))
                 .catch(this.#log.error);
         } else {
-            this.#log.info("Redis already connected!");
+            this.#log.log("Redis already connected!");
         }
     }
 

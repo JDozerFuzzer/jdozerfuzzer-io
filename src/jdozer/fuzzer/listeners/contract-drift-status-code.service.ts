@@ -57,14 +57,14 @@ export class ContractDriftStatusCode implements OnModuleInit {
 
             const res = await this.redisService.get(this.keyManager.responseKey(fuzzerId, operationId, caseId));
             const op = await this.redisService.get(this.keyManager.forOperation(operationId, fuzzerId));
-            const validation = this.findMatch(res.statusCode, op, res.uuidReq);
-            validation.id = res.uuidReq;
+            const validation = this.findMatch(res.statusCode, op);
+            validation.caseId = res.caseId;
             validation.fuzzerId = fuzzerId;
             validation.operationId = operationId;
 
-            await this.redisService.set(this.keyManager.schemaStatusCodeKey(fuzzerId, res.operationId, res.uuidReq), validation);
+            await this.redisService.set(this.keyManager.schemaStatusCodeKey(fuzzerId, res.operationId, res.caseId), validation);
             await this.redisPubSub.publish("jdozer:fuzzer:contract-drift", fuzzerId, "status-code", "contract-drift", {
-                id: validation.id,
+                caseId: validation.caseId,
                 fuzzerId: validation.fuzzerId,
                 operationId: validation.operationId,
                 statusCode: validation.statusCode,
@@ -80,7 +80,7 @@ export class ContractDriftStatusCode implements OnModuleInit {
         }
     }
 
-    private findMatch(statusCode: number, op: any, respId: UUID): any {
+    private findMatch(statusCode: number, op: any): any {
         let resp = op.res.filter((r: any) => r.statusCode === statusCode.toString());
         if (resp.length === 1) {
             return this.buildLevel("exact", statusCode, resp[0].statusCode);

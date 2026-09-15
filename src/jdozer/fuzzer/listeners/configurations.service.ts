@@ -14,9 +14,9 @@ export class ConfugurationsSub implements EventConsumer, OnModuleInit {
 
     private readonly logger = new Logger(ConfugurationsSub.name);
 
-    readonly channels: string[] = ['jdozer:fuzzer:engine'];
-    readonly entityType: string = 'fuzzer-engine';
-    readonly eventType: string = 'started';
+    readonly channels: string[] = ['jdozer:fuzzer:configurations'];
+    readonly entityType: string = 'engine';
+    readonly eventType: string = 'configurated';
 
     constructor(
         private readonly registry: EventConsumerRegistry
@@ -24,7 +24,7 @@ export class ConfugurationsSub implements EventConsumer, OnModuleInit {
 
     onModuleInit() {
         this.registry.register(this);
-        this.logger.log("TotalCasesSub registered");
+        this.logger.log(`${ConfugurationsSub.name} registered`);
     }
 
     async handleEvent(data: any, channel: string): Promise<void> {
@@ -59,7 +59,6 @@ export class Configurations implements OnModuleInit {
             this.attackSurface(fuzzerId)
         ]).then((res) => {
             this.logger.log(`[configurations] Configurations for fuzzerId: ${fuzzerId} has been updated`);
-            this.logger.debug(`[configurations] ${JSON.stringify(res)}`);
             return res;
         }).catch((e) => {
             this.logger.error(`[configurations] An error has occurred: ${e.message}`, e);
@@ -130,8 +129,12 @@ export class Configurations implements OnModuleInit {
                 fuzzerId,
                 surfaces: surfaces
             };
-            await Promise.all([this.redisService.set(this.keyManager.vectorAttackSurfaceKey(fuzzerId), attackSurface),
-            this.redisPubSub.publish("jdozer:fuzzer:configurations", fuzzerId, "attack-surface", "configuration", attackSurface)]);
+            await this.redisService.set(this.keyManager.vectorAttackSurfaceKey(fuzzerId), attackSurface).then(async () => {
+                await this.redisPubSub.publish("jdozer:fuzzer:configurations", fuzzerId, "attack-surface", "configuration", attackSurface)
+            }).catch((e) => {
+                this.logger.error(`[attackSurface] An error has occurred on set or publish: ${e.message}`, e);
+                throw e;
+            });
             return;
 
         } catch (e) {

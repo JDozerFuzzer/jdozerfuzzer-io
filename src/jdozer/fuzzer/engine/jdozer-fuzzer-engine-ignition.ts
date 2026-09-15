@@ -78,22 +78,22 @@ export class JDozerFuzzerEngineIgnition {
 
             engineProcess.on('close', async (code) => {
                 if (code !== 0) {
-                    reject(new Error(`Engine process exited with code ${code}`));
+                    reject(new Error(`[exec] Engine process exited with code ${code}`));
                 } else {
                     const summary: any = fs.readFileSync(`/tmp/${summaryFile}`, 'utf-8');
                     await this.redisService.set(this.keyManger.forEngine(fuzzerId).concat(`:SUM`), JSON.parse(summary));
                     await this.engineStoppedEvent(fuzzerId);
-                    this.log.log(`Engine process with id ${engineProcess.pid} exited successfully!`);
+                    this.log.log(`[exec] Engine process with id ${engineProcess.pid} exited successfully!`);
                     resolve();
                 }
             });
 
             engineProcess.on('error', (err) => {
-                this.log.error(`Engine process encountered an error: ${err}`);
+                this.log.error(`[exec] Engine process encountered an error: ${err}`);
                 reject(err);
             });
 
-            this.log.log(`Engine process started with id ${engineProcess.pid}`);
+            this.log.log(`[exec] Engine process started with id ${engineProcess.pid}`);
             engineProcess.unref();
             this.engineStartedEvent(fuzzerId);
         });
@@ -147,15 +147,15 @@ export class JDozerFuzzerEngineIgnition {
             };
         }
 
-        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'config', 'fuzzer-engine', payload);
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'config', 'engine', payload);
     }
 
     private async engineStartedEvent(fuzzerId: UUID): Promise<void> {
-        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'started', 'fuzzer-engine', { fuzzerId });
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'started', 'engine', { fuzzerId });
     }
 
     private async engineStoppedEvent(fuzzerId: UUID): Promise<void> {
-        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'stopped', 'fuzzer-engine', { fuzzerId });
+        await this.redisPubSub.publish('jdozer:fuzzer:engine', fuzzerId, 'stopped', 'engine', { fuzzerId });
     }
 
 }

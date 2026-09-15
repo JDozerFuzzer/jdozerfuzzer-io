@@ -32,14 +32,17 @@ export class JDozerFuzzerSeeder {
             operations.forEach((op) => {
                 saves.push(this.redisService.set(this.keyManager.forOperation(op.name, fuzzer.id), op));
             });
-            saves.push(this.redisPubSub.publish(`jdozer:fuzzer:fuzzer`, fuzzer.id, `created`, `operations`, operations.map((op) => {
-                return {
-                    id: op.id,
-                    name: op.name,
-                    path: op.path,
-                    method: op.method
-                };
-            })));
+            saves.push(this.redisPubSub.publish(`jdozer:fuzzer:fuzzer`, fuzzer.id, `created`, `operations`, {
+                id: fuzzer.id,
+                operations: operations.map((op) => {
+                    return {
+                        id: op.id,
+                        name: op.name,
+                        path: op.path,
+                        method: op.method
+                    };
+                })
+            }));
             await Promise.all(saves);
             this.logger.log(`Successful contract reading: ${fuzzer.name}`, `for the fuzzer: ${fuzzer.id}`);
             return fuzzer;

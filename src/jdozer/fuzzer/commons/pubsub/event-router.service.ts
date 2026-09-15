@@ -74,7 +74,7 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
       this.logger.verbose(`[handleMessage] Handlers: ${handlers.length}`);
       await Promise.all(handlers);
     } catch (error) {
-      this.logger.error(`Error processing channel message ${pattern}: ${error.message}`);
+      this.logger.error(`[handleMessage] Error processing channel message ${pattern}: ${error.message}`);
     }
   }
 

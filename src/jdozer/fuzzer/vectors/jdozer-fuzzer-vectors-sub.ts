@@ -9,7 +9,7 @@ export class VectorsSubscriber implements EventConsumer, OnModuleInit {
     private readonly logger = new Logger(VectorsSubscriber.name);
 
     readonly channels = ["jdozer:fuzzer:fuzzer"];
-    readonly entityType = "fuzzer";
+    readonly entityType = "operations";
     readonly eventType = "created";
 
     constructor(

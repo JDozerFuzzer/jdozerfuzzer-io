@@ -25,7 +25,7 @@ export class KeyManager {
     return `${KeyManager.JDF}:${fuzzerId}:OP:${id}`;
   }
 
-  public forFake(fuzzerId: string, operation: string, context: string, fid: string): string {
+  public forTestCase(fuzzerId: string, operation: string, context: string, fid: string): string {
     return `${KeyManager.JDF}:${fuzzerId}:DMM:${operation}:${context}:${fid}`;
   }
 

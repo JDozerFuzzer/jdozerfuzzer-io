@@ -24,36 +24,36 @@ export class SocketServer implements OnModuleInit, OnGatewayInit, OnGatewayConne
     constructor() { }
 
     async onModuleInit() {
-        this.logger.log(`SocketServer initialized`);
+        this.logger.debug(`[onModuleInit] SocketServer initialization...`);
         const wsPort: number = parseInt(process.env.FUZZER_WS_PORT || '3002');
 
         this.httpServer = http.createServer();
         this.server.attach(this.httpServer);
 
         this.httpServer.listen(wsPort, () => {
-            this.logger.log(`SocketServer running on port ${(this.httpServer.address() as AddressInfo).port}`);
+            this.logger.log(`[onModuleInit] SocketServer running on port ${(this.httpServer.address() as AddressInfo).port}`);
         });
 
     }
 
     handleDisconnect(client: any) {
-        this.logger.debug(`Client disconnected: ${client.id}`);
+        this.logger.debug(`[handleDisconnect] Client disconnected: ${client.id}`);
     }
 
     handleConnection(client: Socket, ...args: any[]) {
-        this.logger.debug(`Client connected: ${client.id}`);
-        this.logger.debug(`args: ${args}`);
+        this.logger.debug(`[handleConnection] Client connected: ${client.id}`);
+        this.logger.debug(`[handleConnection] args: ${args}`);
         client.emit('connection', { status: 'connected', id: client.id });
     }
 
     afterInit(server: Server) {
-        this.logger.log(`SocketServer initialized`);
+        this.logger.log(`[afterInit] SocketServer initialized`);
     }
 
     @OnEvent("jdozer:fuzzer")
     async handleEvent(data: any): Promise<void> {
-        this.logger.verbose(`[handleEvent] ${data.headers.entityType} - ${data.headers.eventType}`);
-        return this.broadcastMessage('jdozerfuzzer', data);
+        this.logger.debug(`[handleEvent] ${data.headers.entityType} - ${data.headers.eventType}`);
+        return this.broadcastMessage('jdozer:fuzzer', data);
     }
 
     @SubscribeMessage('jdozer:fuzzer')

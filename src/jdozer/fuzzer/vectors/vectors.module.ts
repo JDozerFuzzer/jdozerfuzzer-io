@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { VectorsBootstrap } from './vectors-bootstrap';
 import { VectorUtils } from './vector-utils';
 import { JDozerFuzzerVectors } from './jdozer-fuzzer-vectors';
-import { VectorsSubscriber } from './jdozer-fuzzer-vectors-sub';
-import { JDozerFuzzerDummy } from './jdozer-fuzzer-dummy.service';
+import { VectorsSubscriber } from './jdozer-fuzzer-vectors.sub';
+import { JDozerFuzzerSeed } from './jdozer-fuzzer-seed.service';
 
 @Module({
     imports: [],
@@ -12,7 +12,7 @@ import { JDozerFuzzerDummy } from './jdozer-fuzzer-dummy.service';
         VectorUtils,
         VectorsSubscriber,
         JDozerFuzzerVectors,
-        JDozerFuzzerDummy
+        JDozerFuzzerSeed
     ],
     exports: [VectorsBootstrap, VectorUtils, JDozerFuzzerVectors],
 })

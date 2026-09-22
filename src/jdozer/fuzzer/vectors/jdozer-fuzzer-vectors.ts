@@ -2,13 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { RedisPubSub } from '../commons/pubsub/redis-pub-sub';
 import { KeyManager } from '../commons/storage/key-manager';
-import { VectorsSubscriber } from './jdozer-fuzzer-vectors-sub';
+import { VectorsSubscriber } from './jdozer-fuzzer-vectors.sub';
 import { UUID } from 'crypto';
 import { FuzzerOperation } from '../commons/schemas/fuzzer-operation.dto';
 import { Fuzzer } from '../commons/schemas/fuzzer.dto';
 import { RedisService } from '../commons/storage/redis.service';
 import { VectorUtils } from './vector-utils';
-import { JDozerFuzzerDummy } from './jdozer-fuzzer-dummy.service';
+import { JDozerFuzzerSeed } from './jdozer-fuzzer-seed.service';
 
 export class VectorException extends Error {
   constructor(message: string) {
@@ -28,7 +28,7 @@ export class JDozerFuzzerVectors implements OnModuleInit {
     private readonly redisPubSub: RedisPubSub,
     private readonly vectorsSubscriber: VectorsSubscriber,
     private readonly vectorUtils: VectorUtils,
-    private readonly dummy: JDozerFuzzerDummy
+    private readonly dummy: JDozerFuzzerSeed
   ) { }
 
   onModuleInit() {
@@ -49,11 +49,23 @@ export class JDozerFuzzerVectors implements OnModuleInit {
       });
       const operations: FuzzerOperation[] = await this.redisService.mget(operationsKeys);
 
-      const dummyCases = await this.payloadDummy(fuzzer, operations);
-      const vectorCases = await this.createVectors(fuzzer, operations);
-      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, { id: fuzzer.id, vectorCases, dummyCases, totalCases: vectorCases + dummyCases });
+      const seeds: string[] = [];
+      const vectors: string[] = [];
 
-      this.log.log(`[createTestCases] ${dummyCases + vectorCases} test cases created for fuzzerId: ${fuzzerId}`);
+      let summary: any = {};
+      for (const operation of operations) {
+        seeds.push(...await this.dummy.generated(fuzzer.id, operation));
+        summary = this.summary(seeds, 'seeds');
+        vectors.push(...await this.createVectors(fuzzer, operation));
+        summary = this.summary(vectors, 'mutations', summary);
+      }
+
+      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, {
+        id: fuzzer.id,
+        summary
+      });
+
+      this.log.log(`[createTestCases] ${summary.total} test cases created for fuzzerId: ${fuzzerId}`);
 
     } catch (e) {
       this.log.error(`[createTestCases] Error in createTestCases: ${e}`, e);
@@ -61,43 +73,59 @@ export class JDozerFuzzerVectors implements OnModuleInit {
     }
   }
 
-  async payloadDummy(fuzzer: Fuzzer, operations: FuzzerOperation[]): Promise<number> {
-    try {
-      return await this.dummy.generatePayloads(fuzzer.id, operations);
-    } catch (e) {
-      this.log.error(`[payloadDummy] Error in payloadDummy: ${e}`, e);
-      throw e;
-    }
-  }
+  summary(keys: string[], tag: string, summary: any = { total: 0 }): any {
 
-  async createVectors(fuzzer: Fuzzer, operations: FuzzerOperation[]): Promise<number> {
-    try {
+    for (const key of keys) {
+      const path: string[] = key.split(':');
 
-      const _count: any = {};
-      const saves: Promise<void>[] = [];
-      for (const operation of operations) {
-        _count[operation.name] = 0;
-        this.log.debug(`[createVectors] Processing operation: ${operation.name}`);
-
-        if (operation.req.payload) {
-          const parameters: string[] = await this.vectorUtils.getPropertiesString(operation.req.payload);
-          const vectorsKeys: string[] = await this.vectorUtils.getRandomVectorsKeys(parameters.length);
-          const dmmSeeder: any = await this.vectorUtils.getDmmValid(fuzzer.id, operation.name, 'payload');
-
-          let index: number = parameters.length - 1;
-          for (const vk of vectorsKeys) {
-            const vector: any = await this.redisService.get(vk);
-            const newDmm = this.vectorUtils.vectorToDmm(dmmSeeder, parameters[index], vector);
-            saves.push(this.redisService.set(this.keyManager.forDmm(fuzzer.id, operation.name, newDmm.in, newDmm.id), newDmm));
-          }
-        }
+      if (!summary[`${path[3]}`]) {
+        summary[`${path[3]}`] = { total: 0 };
+      }
+      if (!summary[`${path[3]}`][`${path[4]}`]) {
+        summary[`${path[3]}`][`${path[4]}`] = {};
+      }
+      if (!summary[`${path[3]}`][`${path[4]}`][tag]) {
+        summary[`${path[3]}`][`${path[4]}`][tag] = 0;
       }
 
-      await Promise.all(saves).catch((e) => {
-        this.log.error(`Error while saving vectors: ${(e as Error).message}`, (e as Error).stack);
-      });
+      summary[`${path[3]}`][`${path[4]}`][tag]++;
+      summary[`${path[3]}`].total++;
+      summary.total++;
+    }
 
-      return saves.length;
+    return summary;
+  }
+
+  async createVectors(fuzzer: Fuzzer, operation: FuzzerOperation): Promise<string[]> {
+    try {
+
+      const saves: Promise<void>[] = [];
+
+      if (operation.req.payload) {
+
+        const parameters: string[] = await this.vectorUtils.getPropertiesString(operation.req.payload);
+        const vectorsKeys: string[] = await this.vectorUtils.getRandomVectorsKeys(parameters.length);
+        const dmmSeeder: any = await this.vectorUtils.getDmmValid(fuzzer.id, operation.name, 'payload');
+        const keys: string[] = [];
+        let index: number = parameters.length - 1;
+
+        for (const vk of vectorsKeys) {
+          const vector: any = await this.redisService.get(vk);
+          const newDmm = this.vectorUtils.vectorToDmm(dmmSeeder, parameters[index], vector);
+          const key = this.keyManager.forDmm(fuzzer.id, operation.name, newDmm.in, newDmm.id);
+          saves.push(this.redisService.set(key, newDmm));
+          keys.push(key);
+        }
+
+        await Promise.all(saves).catch((e) => {
+          this.log.error(`Error while saving vectors: ${(e as Error).message}`, (e as Error).stack);
+        });
+
+        return keys;
+
+      }
+
+      return [];
     } catch (error) {
       this.log.error(`Catastrophic failure in createVectors: ${(error as Error).message}`, (error as Error).stack);
       throw error;

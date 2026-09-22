@@ -117,7 +117,7 @@ export class JDozerFuzzerEngineIgnition {
     private async getCasesKeys(fuzzerId: UUID): Promise<string[]> {
         try {
             const client = (this.redisService as any).client;
-            const pattern = this.keyManger.forFake(fuzzerId as string, '*', '*', '*');
+            const pattern = this.keyManger.forTestCase(fuzzerId as string, '*', '*', '*');
             return await client.keys(pattern);
         } catch (e) {
             throw new EngineException({ message: 'Oops! Failed to get Cases Keys!', details: e.message });

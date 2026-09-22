@@ -19,8 +19,8 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
   }
 
   async onApplicationBootstrap() {
-    this.logger.log('EventRouterService initialization...');
-    this.logger.verbose(`Current registry:`, this.registry);
+    this.logger.debug('[onApplicationBootstrap] EventRouterService initialization...');
+    this.logger.verbose(`[onApplicationBootstrap] Current registry:`, this.registry);
     const consumers = this.registry.findAll();
 
     for (const consumer of consumers) {
@@ -32,7 +32,7 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
           );
         }
         this.consumerMap.set(key, consumer);
-        this.logger.debug(`Registered: ${key} -> ${consumer.constructor.name}`);
+        this.logger.debug(`[onApplicationBootstrap] Registered: ${key} -> ${consumer.constructor.name}`);
       }
     }
 
@@ -45,13 +45,13 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
 
     for (const channel of uniqueChannels) {
       await this.client.psubscribe(channel);
-      this.logger.log(`Subscribed to Redis channel: ${channel}`);
+      this.logger.log(`[onApplicationBootstrap] Subscribed to Redis channel: ${channel}`);
     }
     this.client.on('pmessage', async (pattern, channel, message) => {
-      this.logger.verbose(`[handleMessage] Pattern: ${pattern} | Channel: ${channel}`, `${message}`);
+      this.logger.verbose(`[onApplicationBootstrap] Pattern: ${pattern} | Channel: ${channel}`, `${message}`);
       await this.handleMessage(pattern, message);
     });
-    this.logger.debug(`EventRouterService initialization complete. Consumers registered: ${consumers.length}`);
+    this.logger.debug(`[onApplicationBootstrap] EventRouterService initialization complete. Consumers registered: ${consumers.length}`);
   }
 
   private async handleMessage(pattern: string, message: string) {
@@ -67,14 +67,14 @@ export class EventRouterService implements OnApplicationBootstrap, OnModuleDestr
         if (handler) {
           handlers.push(handler.handleEvent(event, pattern));
           this.logger.verbose(
-            `Event '${eventType}' for '${entityType}' on channel '${pattern}' handled by '${match.get(key)?.constructor.name}'`
+            `[handleMessage] Event '${eventType}' for '${entityType}' on channel '${pattern}' handled by '${match.get(key)?.constructor.name}'`
           );
         }
       }
       this.logger.verbose(`[handleMessage] Handlers: ${handlers.length}`);
       await Promise.all(handlers);
     } catch (error) {
-      this.logger.error(`[handleMessage] Error processing channel message ${pattern}: ${error.message}`);
+      this.logger.error(`[handleMessage] Error processing channel message [${pattern}]: ${error.message}`);
     }
   }
 

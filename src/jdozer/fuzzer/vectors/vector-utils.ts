@@ -38,11 +38,8 @@ export class VectorUtils {
   public async getPropertiesString(schema: any): Promise<string[]> {
     try {
       const pointers: string[] = JSONPath({ path: '$..[?(@.type=="string")]', json: schema, resultType: `pointer` });
-      this.log.verbose(`Pointers found: ${pointers}`);
       if (pointers.length > 0) {
-        return pointers.map((pointer: string) => {
-          return pointer.replaceAll(`/items`, `/0`).replaceAll(`/properties`, ``).slice(1);
-        });
+        return pointers.map((pointer: string) => pointer.replaceAll(`/items`, `/0`).replaceAll(`/properties`, ``).slice(1));
       }
       return [];
     } catch (error) {
@@ -100,7 +97,7 @@ export class VectorUtils {
 
   public async getDmmValid(fuzzerId: UUID, operationId: string, context: string): Promise<any> {
     try {
-      const dmmKeys: string[] = await this.redisService.getKeys(this.keyManager.dmmContextPattern(fuzzerId, operationId, context));
+      const dmmKeys: string[] = await this.redisService.scan(this.keyManager.dmmContextPattern(fuzzerId, operationId, context));
       let dmm: any = undefined;
       do {
         const key: number = this.random(0, dmmKeys.length - 1);
@@ -114,13 +111,12 @@ export class VectorUtils {
   }
 
   public async getRandomVectorsKeys(cant: number): Promise<string[]> {
-    const keys: string[] = await this.redisService.getKeys(this.keyManager.vectorsPattern());
+    const keys: string[] = await this.redisService.scan(this.keyManager.vectorsPattern());
     const vectors: string[] = [];
     for (let i = 0; i < cant; i++) {
       const x: number = this.random(0, keys.length - 1);
       vectors.push(keys[x]);
     }
-    this.log.verbose(`[getRandomVectorsKeys]: Vectors keys selected ${vectors.join(', ')}`);
     return vectors;
   }
 

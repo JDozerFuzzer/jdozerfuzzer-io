@@ -186,4 +186,8 @@ export class KeyManager {
     return parts.join(`:`);
   }
 
+  public testCaseSummary(fuzzerId: UUID) {
+    return this.forFuzz(fuzzerId).concat(`:${KeyManager.TEST_CASE_SUMMARY}`);
+  }
+
 }

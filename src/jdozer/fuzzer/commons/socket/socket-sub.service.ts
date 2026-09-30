@@ -37,10 +37,13 @@ export class SocketSubscriber implements EventConsumer, OnModuleInit {
     private readonly eventKeys = [
         `fuzzer:created`,
         `operations:created`,
-        `test-cases:generated`,
+        `test-cases:summary`,
         `engine:configurated`,
         `engine:started`,
-        `configuration:attack-surface`
+        `configuration:attack-surface`,
+        `contract-drift:status-code`,
+        `request:payload`,
+        `response:payload`
     ];
 
     private filter(entityType: string, eventType: string): boolean {

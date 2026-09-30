@@ -11,7 +11,7 @@ export class EngineSubscriber implements EventConsumer, OnModuleInit {
 
     readonly channels = ["jdozer:fuzzer:test-cases"];
     readonly entityType = "test-cases";
-    readonly eventType = "generated";
+    readonly eventType = "summary";
 
     constructor(
         private readonly registry: EventConsumerRegistry

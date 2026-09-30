@@ -57,15 +57,18 @@ export class JDozerFuzzerVectors implements OnModuleInit {
         seeds.push(...await this.dummy.generated(fuzzer.id, operation));
         summary = this.summary(seeds, 'seeds');
         vectors.push(...await this.createVectors(fuzzer, operation));
-        summary = this.summary(vectors, 'mutations', summary);
+        summary = this.summary(vectors, 'grammar-based', summary);
       }
 
-      await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'generated', `test-cases`, {
-        id: fuzzer.id,
-        summary
+      summary.id = fuzzer.id;
+
+      await this.redisService.set(this.keyManager.testCaseSummary(fuzzer.id), summary).then(async () => {
+        await this.redisPubSub.publish(`jdozer:fuzzer:test-cases`, fuzzer.id, 'summary', `test-cases`, summary);
+      }).catch((e) => {
+        this.log.error(`[createTestCases] Error in createTestCasesSummary: ${e.message}`, e.stack);
       });
 
-      this.log.log(`[createTestCases] ${summary.total} test cases created for fuzzerId: ${fuzzerId}`);
+      this.log.log(`[createTestCases] ${summary.total} test cases created for fuzzerId: ${fuzzer.id}`);
 
     } catch (e) {
       this.log.error(`[createTestCases] Error in createTestCases: ${e}`, e);

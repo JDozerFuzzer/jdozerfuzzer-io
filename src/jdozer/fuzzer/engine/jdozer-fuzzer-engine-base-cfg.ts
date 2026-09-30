@@ -63,8 +63,7 @@ export class JDozerFuzzerEngineBaseCfg {
         const payload: any = {
             fuzzerId,
             phases: {},
-            scenarios: {},
-            totalCases: cases
+            scenarios: {}
         };
 
         for (const phase of config.config.phases) {

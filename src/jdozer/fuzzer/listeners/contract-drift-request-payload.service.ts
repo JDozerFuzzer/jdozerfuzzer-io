@@ -7,8 +7,7 @@ import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 import { UUID } from "crypto";
 import { KeyManager } from "../commons/storage/key-manager";
 import { SchemaUtils } from "../commons/schema-utils";
-import { ContractDriftRequestPayloadFinding, ContractDriftRequestPayloadFindings } from "./contract-drift-request-payload.types";
-import { request } from "http";
+import { AjvFindingClassifier, SeverityMetric } from "./types/schema-validation.types";
 
 @Injectable()
 export class ContractDriftRequestPayloadSub implements EventConsumer, OnModuleInit {
@@ -38,6 +37,7 @@ export class ContractDriftRequestPayload implements OnModuleInit {
 
     private readonly logger = new Logger(ContractDriftRequestPayload.name);
     private readonly keyManager = new KeyManager();
+    private readonly findingClassifier = new AjvFindingClassifier();
 
     constructor(
         private readonly redisService: RedisService,
@@ -70,8 +70,10 @@ export class ContractDriftRequestPayload implements OnModuleInit {
                 fuzzerId: fuzzerId,
                 operationId: op.name,
                 isValid: dataPayload.valid,
-                errors: dataPayload
+                mutations: this.getSchemaValidationFinding(dataPayload.errors)
             };
+
+            validation.mutationsMetrics = this.getSeverityMetric(validation.mutations);
 
             await Promise.all([
                 this.redisService.set(this.keyManager.schemaProbeRequestPayloadKey(fuzzerId, op.name, caseId), validation),
@@ -83,55 +85,24 @@ export class ContractDriftRequestPayload implements OnModuleInit {
                 })
             ]);
 
-            /**
-            let res: any = await this.redisService.get(keys[0].replaceAll(':REQ', ':RES'));
-            if (dataPayload) {
-                const finding: SchemaValidationFinding = this.getSchemaValidationFinding(dataPayload.valid, res.statusCode);
-                finding.details = dataPayload;
-                await this.redisService.set(keys[0].replaceAll(':REQ', ':schemaRequestPayload'), {
-                    id: responseId,
-                    fuzzerId: fuzzerId,
-                    operationId: op.name,
-                    finding: finding
-                });
-                await this.redisPubSub.publish('jdozer:fuzzer:listeners', fuzzerId, `payload`, `schema-request`, {
-                    id: keys[0],
-                    fuzzerId: fuzzerId,
-                    operationId: op.name,
-                    isValid: finding.isValid,
-                    statusCategory: finding.statusCategory,
-                    severity: finding.severity,
-                    type: finding.findingType
-                });
-
-            } else {
-                this.logger.warn(`[validate] Response not found for key pattern ${this.keyManager.responseIdPattern(fuzzerId, responseId)}`);
-            }
-            */
-
         } catch (e) {
             this.logger.error(`[validate] An error has occurred: ${e.message}`, e);
             throw e;
         }
     }
 
-    private getSchemaValidationFinding(isValid: boolean, statusCode: number): ContractDriftRequestPayloadFinding {
-        const sc: string = this.getStatusCategory(statusCode);
-        const key: string = `${isValid ? 'valid' : 'invalid'}-${sc}`;
-        const finding = ContractDriftRequestPayloadFindings[key];
-        return {
-            statusCode: statusCode,
-            ...finding
-        };
+    private getSchemaValidationFinding(errors: any[] | undefined): any[] {
+        if (!errors) {
+            return [];
+        }
+        return errors.map((error) => {
+            return { ...error, ...this.findingClassifier.classify(error) };
+        });
     }
 
-    private getStatusCategory(statusCode: number): '2xx' | '4xx' | '5xx' {
-        if (statusCode >= 200 && statusCode < 300) return '2xx';
-        if (statusCode >= 400 && statusCode < 500) return '4xx';
-        if (statusCode >= 500 && statusCode < 600) return '5xx';
-        throw new Error(`Unexpected status code: ${statusCode}`);
+    private getSeverityMetric(findings: any[]): SeverityMetric {
+        const severityNames: string[] = findings.map(f => f.severity);
+        return this.findingClassifier.computeSeverityMetric(severityNames);
     }
-
-
 
 }

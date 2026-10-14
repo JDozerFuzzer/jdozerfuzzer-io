@@ -20,7 +20,7 @@ export class TestCaseSummarySub implements EventConsumer, OnModuleInit {
     }
 
     channels: string[] = ["jdozer:fuzzer:engine"];
-    entityType: string = "fuzzer-engine";
+    entityType: string = "engine";
     eventType: string = "stopped";
 
     async handleEvent(data: any, channel: string): Promise<void> {
@@ -67,39 +67,41 @@ export class TestCaseSummary implements OnModuleInit {
         }
     }
 
-    private readonly collections: Record<string, (record: any) => any> = {
-        [`${KeyManager.REQUEST}`]: this.REQ,
-        [`${KeyManager.RESPONSE}`]: this.RES,
-        [`${KeyManager.CONTRACT_DRIFT_REQUEST_PAYLOAD}`]: this.schemaRequestPayload,
-        [`${KeyManager.CONTRACT_DRIFT_RESPONSE_PAYLOAD}`]: this.schemaResponsePayload,
-        [`${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`]: this.schemaResponseStatusCode,
-        [`${KeyManager.TEST_CASE_SUMMARY}`]: this.fuzzingCase,
-        [`${KeyManager.GRAMMAR_VECTOR}`]: this.VEC
+    private readonly collections: Record<string, { key: string, fn: (record: any) => any }> = {
+        [`attackSurface`]: { key: `${KeyManager.REQUEST}`, fn: this.REQ },
+        [`result`]: { key: `${KeyManager.RESPONSE}`, fn: this.RES },
+        [`mutationsPayload`]: { key: `${KeyManager.CONTRACT_DRIFT_REQUEST_PAYLOAD}`, fn: this.mutationsRequestPayload },
+        [`responsePayloadCheck`]: { key: `${KeyManager.CONTRACT_DRIFT_RESPONSE_PAYLOAD}`, fn: this.schemaResponsePayload },
+        [`statusCodeDrift`]: { key: `${KeyManager.CONTRACT_DRIFT_STATUS_CODE}`, fn: this.schemaResponseStatusCode },
+        //[`fuzzingCase`]: { key: `${KeyManager.TEST_CASE_SUMMARY}`, fn: this.fuzzingCase },
+        [`injectionVector`]: { key: `${KeyManager.GRAMMAR_VECTOR}`, fn: this.VEC }
     };
 
     private async compose(baseKey: string): Promise<any> {
         try {
 
-            const keys: string[] = Object.keys(this.collections).map((k: string) => baseKey.concat(`:${k}`));
+            const keys: string[] = Object.keys(this.collections).map((k: string) => baseKey.concat(`:${this.collections[k].key}`));
 
-            return this.redisAdapter.mget(keys).then((data: any[]) => {
+            return this.redisAdapter.mget(keys).then(async (data: any[]) => {
                 const mapped: Record<string, any> = this.keysMapper(keys, data);
                 const summary: Record<string, any> = {};
                 for (let k of Object.keys(this.collections)) {
-                    const record: any = mapped[baseKey.concat(`:${k}`)];
+                    const record: any = mapped[baseKey.concat(`:${this.collections[k].key}`)];
                     if (!record || Object.keys(record).length == 0) {
-                        this.logger.warn(`[compose] No data found for key: ${k}`, baseKey.concat(`:${k}`));
+                        this.logger.warn(`[compose] No data found for key: ${k}`, baseKey.concat(`:${this.collections[k].key}`));
                         continue;
                     }
                     try {
-                        summary[k] = this.collections[k](record);
+                        summary[k] = this.collections[k].fn(record);
                     } catch (e) {
                         this.logger.error(`[compose] An error occurred while attempting to execute the mapping function for key ${k}: ${e.message}`, `key: ${baseKey.concat(`:${k}`)}`);
                     }
                 }
                 summary[`id`] = baseKey.split(":")[4];
                 summary[`fuzzerId`] = baseKey.split(":")[1];
-                return this.redisAdapter.set(this.keyManager.testCaseSummaryKey(summary.fuzzerId, summary.operationId, summary.id), summary);
+                summary[`operationId`] = baseKey.split(":")[3];
+
+                return await this.redisAdapter.set(this.keyManager.testCaseSummaryKey(summary.fuzzerId, summary.operationId, summary.id), summary);
 
             }).catch(e => {
                 this.logger.error(`[compose] An error has occurred: ${e.message}`, e);
@@ -120,26 +122,30 @@ export class TestCaseSummary implements OnModuleInit {
         return data;
     }
 
-    private schemaRequestPayload(record: any): any {
+    private mutationsRequestPayload(record: any): any {
         return {
-            isValid: record.finding.isValid,
-            category: record.finding.statusCategory,
-            severtiy: record.finding.severity,
-            type: record.finding.findingType
+            isValid: record.isValid,
+            mutationsCant: record.mutationsMetrics.count,
+            severity: record.mutationsMetrics.averageLevelName,
+            totalPoints: record.mutationsMetrics.total
         };
     }
 
     private schemaResponsePayload(record: any): any {
         return {
             isValid: record.isValid,
-            severity: record.SEVERITY_LEVEL
+            findingType: record.finding.type,
+            severity: record.finding.severityLevel,
+            severityName: record.finding.severityName
         };
     }
 
     private schemaResponseStatusCode(record: any): any {
         return {
-            matchType: record.matchType,
-            severity: record.severity
+            statusCode: record.statusCode,
+            matchType: record.finding.matchType,
+            severity: record.finding.severity,
+            severityName: record.finding.severityName
         };
     }
 

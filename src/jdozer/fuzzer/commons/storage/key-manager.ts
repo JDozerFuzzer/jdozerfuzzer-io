@@ -145,6 +145,9 @@ export class KeyManager {
   }
 
   private caseBaseKey(fuzzerId: UUID, operation: string, id: UUID): string {
+    if (!fuzzerId || !operation || !id) {
+      throw new Error(`[caseBaseKey] Invalid arguments: fuzzerId=${fuzzerId}, operation=${operation}, id=${id}`);
+    }
     return this.forEngine(fuzzerId).concat(`:${operation}`).concat(`:${id}`);
   }
 

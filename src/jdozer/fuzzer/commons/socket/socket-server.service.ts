@@ -52,7 +52,7 @@ export class SocketServer implements OnModuleInit, OnGatewayInit, OnGatewayConne
 
     @OnEvent("jdozer:fuzzer")
     async handleEvent(data: any): Promise<void> {
-        this.logger.debug(`[handleEvent] ${data.headers.entityType} - ${data.headers.eventType}`);
+        this.logger.verbose(`[handleEvent] ${data.headers.entityType} - ${data.headers.eventType}`);
         return this.broadcastMessage('jdozer:fuzzer', data);
     }
 

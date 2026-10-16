@@ -30,6 +30,9 @@ export class KeyManager {
   }
 
   public forEngine(fuzzerId: string): string {
+    if (fuzzerId === undefined || fuzzerId == null) {
+      throw new Error('fuzzerId is required');
+    }
     return `${KeyManager.JDF}:${fuzzerId}:ENG`;
   }
   public forApi(fuzzerId: string): string {
@@ -141,7 +144,10 @@ export class KeyManager {
   }
 
   public requestSummaryListPattern(fuzzerId: UUID, operationId: string): string {
-    return this.forEngine(fuzzerId).concat(`:${operationId}:*:SUMMARY`);
+    if (!operationId) {
+      throw new Error(`[requestSummaryListPattern] Invalid arguments: operationId=${operationId}`);
+    }
+    return this.forEngine(fuzzerId).concat(`:${operationId}:*:TEST_CASE_SUMMARY`);
   }
 
   private caseBaseKey(fuzzerId: UUID, operation: string, id: UUID): string {

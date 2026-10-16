@@ -5,6 +5,7 @@ import { RedisAdapter } from "../commons/storage/redis-adapter.service";
 import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 import { UUID } from "crypto";
 import { KeyManager } from "../commons/storage/key-manager";
+import { SeverityLevelCompute, SeverityMetric } from "./types/severity-levels.types";
 
 @Injectable()
 export class TestCaseSummarySub implements EventConsumer, OnModuleInit {
@@ -34,6 +35,7 @@ export class TestCaseSummarySub implements EventConsumer, OnModuleInit {
 export class TestCaseSummary implements OnModuleInit {
 
     private readonly keyManager: KeyManager = new KeyManager();
+    private severityCompute: SeverityLevelCompute = new SeverityLevelCompute();
 
     constructor(
         private readonly redisAdapter: RedisAdapter,
@@ -100,6 +102,7 @@ export class TestCaseSummary implements OnModuleInit {
                 summary[`id`] = baseKey.split(":")[4];
                 summary[`fuzzerId`] = baseKey.split(":")[1];
                 summary[`operationId`] = baseKey.split(":")[3];
+                summary[`severity`] = this.severitySummary(summary);
 
                 return await this.redisAdapter.set(this.keyManager.testCaseSummaryKey(summary.fuzzerId, summary.operationId, summary.id), summary);
 
@@ -126,7 +129,7 @@ export class TestCaseSummary implements OnModuleInit {
         return {
             isValid: record.isValid,
             mutationsCant: record.mutationsMetrics.count,
-            severity: record.mutationsMetrics.averageLevelName,
+            severity: record.mutationsMetrics.averageLevel,
             totalPoints: record.mutationsMetrics.total
         };
     }
@@ -135,8 +138,7 @@ export class TestCaseSummary implements OnModuleInit {
         return {
             isValid: record.isValid,
             findingType: record.finding.type,
-            severity: record.finding.severityLevel,
-            severityName: record.finding.severityName
+            severity: record.finding.severity
         };
     }
 
@@ -144,8 +146,7 @@ export class TestCaseSummary implements OnModuleInit {
         return {
             statusCode: record.statusCode,
             matchType: record.finding.matchType,
-            severity: record.finding.severity,
-            severityName: record.finding.severityName
+            severity: record.finding.severity
         };
     }
 
@@ -156,12 +157,6 @@ export class TestCaseSummary implements OnModuleInit {
             owasp: record.vectorApplied.owasp_category,
             category: record.vectorApplied.subcategory,
             insertion: record.insertion
-        };
-    }
-
-    private fuzzingCase(record: any): any {
-        return {
-            isValidRequest: record.isValidRequest
         };
     }
 
@@ -181,6 +176,14 @@ export class TestCaseSummary implements OnModuleInit {
             totalTime: record.timings.end - record.timings.start,
             time: record.time
         };
+    }
+
+    private severitySummary(summary: any): SeverityMetric {
+        return this.severityCompute.computeSeverityMetric([
+            summary.mutationsPayload.severity?.name,
+            summary.responsePayloadCheck.severity?.name,
+            summary.statusCodeDrift.severity?.name
+        ]);
     }
 
     private readonly logger: Logger = new Logger(TestCaseSummary.name);

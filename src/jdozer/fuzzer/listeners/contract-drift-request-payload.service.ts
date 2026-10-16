@@ -7,7 +7,8 @@ import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
 import { UUID } from "crypto";
 import { KeyManager } from "../commons/storage/key-manager";
 import { SchemaUtils } from "../commons/schema-utils";
-import { AjvFindingClassifier, SeverityMetric } from "./types/schema-validation.types";
+import { AjvFindingClassifier } from "./types/schema-validation.types";
+import { SeverityLevelCompute, SeverityMetric } from "./types/severity-levels.types";
 
 @Injectable()
 export class ContractDriftRequestPayloadSub implements EventConsumer, OnModuleInit {
@@ -38,6 +39,7 @@ export class ContractDriftRequestPayload implements OnModuleInit {
     private readonly logger = new Logger(ContractDriftRequestPayload.name);
     private readonly keyManager = new KeyManager();
     private readonly findingClassifier = new AjvFindingClassifier();
+    private readonly severityLevelCompute: SeverityLevelCompute = new SeverityLevelCompute();
 
     constructor(
         private readonly redisService: RedisService,
@@ -101,8 +103,8 @@ export class ContractDriftRequestPayload implements OnModuleInit {
     }
 
     private getSeverityMetric(findings: any[]): SeverityMetric {
-        const severityNames: string[] = findings.map(f => f.severity);
-        return this.findingClassifier.computeSeverityMetric(severityNames);
+        const severities: string[] = findings.map((f: any) => f.severity.name);
+        return this.severityLevelCompute.computeSeverityMetric(severities);
     }
 
 }

@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { EventConsumer } from "../commons/pubsub/event-consumer.interface";
-import { EventConsumerRegistry } from "../commons/pubsub/event-consumer-registry.service";
-import { KeyManager } from "../commons/storage/key-manager";
-import { RedisService } from "../commons/storage/redis.service";
-import { RedisPubSub } from "../commons/pubsub/redis-pub-sub";
+import { EventConsumer } from "../../commons/pubsub/event-consumer.interface";
+import { EventConsumerRegistry } from "../../commons/pubsub/event-consumer-registry.service";
+import { KeyManager } from "../../commons/storage/key-manager";
+import { RedisService } from "../../commons/storage/redis.service";
+import { RedisPubSub } from "../../commons/pubsub/redis-pub-sub";
 import { UUID } from "crypto";
 
 
@@ -72,14 +72,14 @@ export class Vectors implements OnModuleInit {
             const dmms: any[] = await this.redisService.mget(dmmkeys);
             const onlySchemas: any[] = dmms.filter((dmm) => !dmm.vectorId);
             const probes: any = {
-                id: request.uuidReq,
+                id: request.caseId,
                 fuzzerId: fuzzerId,
                 operationId: request.operationId,
                 isValid: onlySchemas.every((dmm) => dmm.valid),
                 probes: onlySchemas
             };
 
-            await this.redisService.set(this.keyManager.vectorKey(fuzzerId, request.operationId, request.uuidReq), probes);
+            await this.redisService.set(this.keyManager.vectorKey(fuzzerId, request.operationId, request.caseId), probes);
             await this.redisPubSub.publish(`jdozer:fuzzer:test-case`, fuzzerId, `summary`, `vectors`, probes);
 
             return;

@@ -156,7 +156,10 @@ export class TestCaseSummary implements OnModuleInit {
             type: record.vectorApplied.type,
             owasp: record.vectorApplied.owasp_category,
             category: record.vectorApplied.subcategory,
-            insertion: record.insertion
+            reflection: record.finding.reflection,
+            outcome: record.finding.outcome,
+            veredict: record.finding.veredict,
+            severity: record.finding.severity
         };
     }
 
@@ -182,7 +185,8 @@ export class TestCaseSummary implements OnModuleInit {
         return this.severityCompute.computeSeverityMetric([
             summary.mutationsPayload.severity?.name,
             summary.responsePayloadCheck.severity?.name,
-            summary.statusCodeDrift.severity?.name
+            summary.statusCodeDrift.severity?.name,
+            summary.injectionVector?.severity.name
         ]);
     }
 
